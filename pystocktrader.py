@@ -238,10 +238,12 @@ class MainFrame(wx.Frame):
 	def __init__(self, parent, id, title):
 		global WINDOW_X, WINDOW_Y
 		wx.Frame.__init__(self, parent, id, title, size=(WINDOW_X, WINDOW_Y))
-		# Setting up the menu.
-		#icon = wx.Image('fox.png',wx.BITMAP_TYPE_PNG)
-		#self.Frm.SetIcon(icon)
+		icon=wx.EmptyIcon()
+		icon_file = wx.Image('icon.png',wx.BITMAP_TYPE_PNG)
+		icon.CopyFromBitmap(icon_file.ConvertToBitmap())
+		self.SetIcon(icon)
 
+		# Setting up the menu.
 		filemenu= wx.Menu()
 		menuOpen = filemenu.Append(wx.ID_OPEN,lang.MENU_OPEN," Open project")
 		menuSave = filemenu.Append(wx.ID_SAVE,lang.MENU_SAVE," Open project")
@@ -494,9 +496,13 @@ class myWxPlot(wx.Panel):
 
 	def set_data(self):
 		#print "Set data",DONE_SIM
+		global MA1,MA2
 		self.stock = stock_data(TARGET_CODE)
 		s_dt = datetime.date(*[int(val) for val in START_DATE.split('-')])
 		e_dt = datetime.date(*[int(val) for val in END_DATE.split('-')])
+		margin = int(MA2)
+		if(margin < int(MA1)):
+			margin =int(MA1)
 		if(dp.is_num(TARGET_CODE) and int(TARGET_CODE) < 1000):
 			self.r = dp.get_price_history()
 			n =len(self.r.close)
@@ -509,12 +515,22 @@ class myWxPlot(wx.Panel):
 			if(n < 1):
 				print "Error"
 				return False
-			margin = 30
+			#margin = 30
 			r2 = dp.get_data_by_day_num(self.stock,e_dt,n+margin)
 		#print r2.close
 		#Moving average
-		ma1 = dp.moving_average(r2.close, int(MA1))
-		ma2 = dp.moving_average(r2.close, int(MA2))
+		if(len(r2.close) >= int(MA1)):
+			ma1 = dp.moving_average(r2.close, int(MA1))
+		else:
+			MA1 = len(r2.close)
+			ma1 = dp.moving_average(r2.close, int(MA1))
+		if(len(r2.close) >= int(MA2)):
+			ma2 = dp.moving_average(r2.close, int(MA2))
+		else:
+			MA2 = len(r2.close)
+			ma2 = dp.moving_average(r2.close, int(MA2))
+		#ma1 = dp.moving_average(r2.close, int(MA1))
+		#ma2 = dp.moving_average(r2.close, int(MA2))
 		if(len(ma1) > n):
 			self.ma1 = ma1[margin:]
 			self.ma2 = ma2[margin:]
@@ -1695,10 +1711,14 @@ def disp_2d():
 	plt.show()
 
 def disp_graph():
+	global MA1,MA2
 	stock = stock_data(TARGET_CODE)
 	s_dt = datetime.date(*[int(val) for val in START_DATE.split('-')])
 	e_dt = datetime.date(*[int(val) for val in END_DATE.split('-')])
 
+	margin =int(MA2)
+	if(margin < int(MA1)):
+		margin =int(MA1)
 	if(dp.is_num(TARGET_CODE) and int(TARGET_CODE) < 1000):
 		r = dp.get_price_history()
 		n =len(r.close)
@@ -1706,11 +1726,18 @@ def disp_graph():
 	else:
 		r = dp.get_data_by_day(stock,s_dt,e_dt.year,e_dt.month,e_dt.day)
 		n =len(r.close)
-		margin = 30
 		r2 = dp.get_data_by_day_num(stock,e_dt,n+margin)
 	#Moving average
-	ma1 = dp.moving_average(r2.close, int(MA1))
-	ma2 = dp.moving_average(r2.close, int(MA2))
+	if(len(r2.close) >= int(MA1)):
+		ma1 = dp.moving_average(r2.close, int(MA1))
+	else:
+		MA1 = len(r2.close)
+		ma1 = dp.moving_average(r2.close, int(MA1))
+	if(len(r2.close) >= int(MA2)):
+		ma2 = dp.moving_average(r2.close, int(MA2))
+	else:
+		MA2 = len(r2.close)
+		ma2 = dp.moving_average(r2.close, int(MA2))
 	if(len(ma1) > n):
 		ma1 = ma1[margin:]
 		ma2 = ma2[margin:]
