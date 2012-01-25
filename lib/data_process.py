@@ -61,7 +61,52 @@ def average(datas):
 	std = np.std(a)
 	std_score = np.round_(50+10*(a-avg)/std)
 	return a,t,avg,var,std,std_score
+def rci_array(prices, n=9):
+	rci_a = np.zeros_like(prices)
+	for i in range(n, len(prices)):
+		tmp_prices = prices[:i]
+		rci_a[i] = rci(tmp_prices, n)
+	rci_a[:n]=rci_a[n]
+	return rci_a
+def rci(prices, n=5):
+	data = prices[-n-1:]
+	data = data[::-1]	#reverse
+	sort_data = sort(data)
+	sort_data = sort_data[::-1]	#reverse
+	#argsort_data = np.argsort(data)
 
+	#print prices
+	#print data
+	#print sort_data
+	#print argsort_data
+	price_cnt = {}
+	price_rnk = {}
+	for i in range(0, len(sort_data)):
+		#print "price =",sort_data[i]
+		if not price_cnt.has_key(str(sort_data[i])):
+			price_cnt[str(sort_data[i])] = 1
+		else:
+			price_cnt[str(sort_data[i])] += 1
+		if not price_rnk.has_key(str(sort_data[i])):
+			price_rnk[str(sort_data[i])] = i+1
+		else:
+			price_rnk[str(sort_data[i])] += i+1
+		#print "price rank =",price_rnk[str(sort_data[i])]
+	sum_rank_diff2=0
+	for i in range(0, len(data)):
+		rank = float(price_rnk[str(data[i])]) / float(price_cnt[str(data[i])])
+		#print "price =",data[i]
+		#print "i =",i
+		#print "price count =",price_cnt[str(data[i])]
+		#print "price rank =",rank
+		rank_diff = rank - i -1
+		rank_diff2 =  rank_diff * rank_diff
+		#print "rank diff =",rank_diff
+		sum_rank_diff2 += rank_diff2
+	#http://system-trading.jp/takahashi/index.php?ID=53
+	rci =(1-(6*sum_rank_diff2)/(n*(n*n-1)))*100
+	return rci
+	
 def moving_average(x, n, type='simple'):
 	"""
 	compute an n period moving average.
@@ -180,6 +225,7 @@ def csv2rec(csv_datas):
 				open,high,low,close,vol,aclose = stock_datas[1:]
 			else:
 				#stock_datas.append(stock_datas[5])	#close -> adj_close
+				vol = stock_datas[6]
 				aclose = stock_datas[5]
 		else:
 			vol = stock_datas[6]
@@ -191,6 +237,47 @@ def csv2rec(csv_datas):
 	#names = ('date','year','month','day','dnum','open', 'close', 'high', 'low', 'volume', 'aclose')
 	#r = np.rec.fromrecords(results, names=names)
 	return r
+
+def get_updown_num(stock,num):
+	datas = stock.datas[-num-1:]
+	ud_num=0
+	last_close = -1
+	for data in datas:
+		if not data:
+			continue
+		data = data.strip()
+		stock_datas = data.split(',')
+		open = stock_datas[2]
+		#high = stock_datas[3]
+		#low = stock_datas[4]
+		close = stock_datas[5]
+		if(last_close < 0):
+			last_close = close
+		if(float(open) < float(close)):
+			if(ud_num>=0):
+				ud_num +=1
+			else:
+				ud_num =1
+		elif(float(open) > float(close)):
+			if(ud_num<=0):
+				ud_num -=1
+			else:
+				ud_num =-1
+		else:
+			if(float(open) > float(last_close)):
+				if(ud_num>=0):
+					ud_num +=1
+				else:
+					ud_num =1
+			elif(float(open) < float(last_close)):
+				if(ud_num<=0):
+					ud_num -=1
+				else:
+					ud_num =-1
+			else:
+				ud_num=0
+		last_close = close
+	return ud_num
 def get_all_datas(stock):
 	if(is_num(stock.id) and int(stock.id) < 1000):
 		pdatas = open_file(LOG_DIR,PRICE_LOG)
