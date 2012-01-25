@@ -34,9 +34,11 @@ WINDOW_Y = 800
 ICON_DIR = "./icons/small/"
 ICON_DIR = "./icons/"
 FONT_DIR = "./font/"
+DATE = 0
+
 PRJ_DIR = "./project/"
 PRJ_NAME = "TEST"
-
+PRJ_FILE = ""
 PRJ_EXT = "*.py"
 GRAPH_EXT = "*.png"
 DATA_DIR = "./data/"
@@ -308,6 +310,15 @@ class MainFrame(wx.Frame):
 		panel = wx.Panel(self, -1)
 		vbox = wx.BoxSizer(wx.VERTICAL)
 		#
+		#hbox0 = wx.BoxSizer(wx.HORIZONTAL)
+		sizer = wx.GridBagSizer(0, 50)
+		self.prj_txt = wx.StaticText(panel, -1, lang.PROJECT_FILE + " : " + PRJ_FILE,style=wx.TE_LEFT)
+		#hbox0.Add(prj_txt, 0, flag= wx.LEFT | wx.TOP, border=10)
+		sizer.Add(self.prj_txt, (0, 0), flag= wx.LEFT | wx.TOP, border=5)
+		self.prj_name = wx.StaticText(panel, -1, lang.PROJECT_NAME + " : " + PRJ_NAME,style=wx.TE_CENTER)
+		#hbox0.Add(prj_file, 0, flag= wx.LEFT | wx.TOP, border=10)
+		sizer.Add(self.prj_name, (0, 3), flag= wx.RIGHT | wx.TOP, border=5)
+		vbox.Add(sizer, 0, wx.ALIGN_LEFT | wx.LEFT, 10)
 
 		#Draw data
 		self.panel2 = wx.Panel(panel, -1)
@@ -347,9 +358,17 @@ class MainFrame(wx.Frame):
 		setup.Destroy()
 
 	def OnOpen(self,e):
-		openprj = OpenProject(None, -1, lang.OPEN_PRJ)
-		openprj.ShowModal()
-		openprj.Destroy()
+		global PRJ_DIR,PRJ_FILE,DONE_SIM
+		self.dirname = PRJ_DIR
+		dlg = wx.FileDialog(self, lang.SELECT_PROJ, self.dirname, "", PRJ_EXT, wx.OPEN)
+		if dlg.ShowModal() == wx.ID_OK:
+			PRJ_FILE = dlg.GetFilename()
+			PRJ_DIR = dlg.GetDirectory()
+			DONE_SIM = 0
+		dlg.Destroy()
+		read_prj()
+		self.prj_txt.SetLabel(lang.PROJECT_FILE + " : " + PRJ_FILE)
+		self.prj_name.SetLabel(lang.PROJECT_NAME + " : " + PRJ_NAME)
 		self.plot.fig.clear()
 		self.plot.set_data()
 		self.plot.setsize()
@@ -586,9 +605,11 @@ class myWxPlot(wx.Panel):
 		#self.r.date = [str(date) for date in self.r.date]	#NG
 		#r.date error
 		#print sys.getdefaultencoding()
-		#xdata = self.r.date
-		#print self.r.date
-		xdata = range(0,len(self.r.close))
+		if(DATE):
+			xdata = self.r.date
+			#print self.r.date
+		else:
+			xdata = range(0,len(self.r.close))
 		props = font_manager.FontProperties(size=10)
 		textsize = 9
 		fillcolor = 'darkgoldenrod'
@@ -625,14 +646,16 @@ class myWxPlot(wx.Panel):
 		else:
 			ax1.set_title('%s daily'%self.stock.id)
 
-		ax2.plot(xdata, self.r.close, color='black', lw=2)
+
 		#print self.r.date
-		#ax2.plot(self.r.date, self.r.close, color='black', lw=2)
-		deltas = np.zeros_like(self.r.close)
-		deltas[1:] = np.diff(self.r.close)
-		up = deltas>0
-		#ax2.vlines(xdata[up], self.r.low[up], self.r.high[up], color='black', label='_nolegend_')
-		#ax2.vlines(xdata[~up], self.r.low[~up],self.r.high[~up], color='black', label='_nolegend_')
+		if(DATE):
+			deltas = np.zeros_like(self.r.close)
+			deltas[1:] = np.diff(self.r.close)
+			up = deltas>0
+			ax2.vlines(xdata[up], self.r.low[up], self.r.high[up], color='black', label='_nolegend_')
+			ax2.vlines(xdata[~up], self.r.low[~up],self.r.high[~up], color='black', label='_nolegend_')
+		else:
+			ax2.plot(xdata, self.r.close, color='black', lw=2)
 		linema10, = ax2.plot(xdata, self.ma1, color='blue', lw=2, label='MA (' + str(MA1) + ')')
 		linema20, = ax2.plot(xdata, self.ma2, color='red', lw=2, label='MA (' + str(MA2) + ')')
 
@@ -1588,15 +1611,12 @@ class StockSheet(sheet.CSheet):
 				#if col > 2:
 					#self.SetCellAlignment(row, col, wx.ALIGN_RIGHT, wx.ALIGN_CENTRE)
 
-
 class Stock_data(wx.Dialog):
 	def __init__(self, parent, id, title):
 		wx.Dialog.__init__(self, parent, id, title, size=(800, 500))
 
-
 		nb = wx.Notebook(self, -1, style=wx.NB_BOTTOM)
 		self.sheet1 = StockSheet(nb)
-
 		nb.AddPage(self.sheet1, 'Stock Sheet1')
 		self.sheet1.SetFocus()
 		self.Centre()
@@ -1797,12 +1817,10 @@ def disp_graph():
 		#print res_datas[1]
 
 
-
-	#print "Draw data",DONE_SIM
-	#print r.date
-	#r.date error
-	#xdata = r.date
-	xdata = range(0,len(r.close))
+	if(DATE):
+		xdata = r.date
+	else:
+		xdata = range(0,len(r.close))
 
 	N = len(r.close)
 	fillcolor = 'darkgoldenrod'
@@ -1823,13 +1841,15 @@ def disp_graph():
 	else:
 		ax1.set_title('%s daily'%stock.id)
 
-	ax2.plot(xdata, r.close, color='black', lw=2)
-	#print r.date
-	deltas = np.zeros_like(r.close)
-	deltas[1:] = np.diff(r.close)
-	up = deltas>0
-	#ax2.vlines(xdata[up], r.low[up], r.high[up], color='black', label='_nolegend_')
-	#ax2.vlines(xdata[~up], r.low[~up],r.high[~up], color='black', label='_nolegend_')
+	if(DATE):
+		deltas = np.zeros_like(r.close)
+		deltas[1:] = np.diff(r.close)
+		up = deltas>0
+		ax2.vlines(xdata[up], r.low[up], r.high[up], color='black', label='_nolegend_')
+		ax2.vlines(xdata[~up], r.low[~up],r.high[~up], color='black', label='_nolegend_')
+	else:
+		ax2.plot(xdata, r.close, color='black', lw=2)
+
 	linema10, = ax2.plot(xdata, ma1, color='blue', lw=2, label='MA (' + str(MA1) + ')')
 	linema20, = ax2.plot(xdata, ma2, color='red', lw=2, label='MA (' + str(MA2) + ')')
 
@@ -1907,7 +1927,6 @@ def disp_2stock_graph(stock1,stock2):
 	else:
 		r2 = dp.get_data_by_day(stock2,s_dt,e_dt.year,e_dt.month,e_dt.day)
 
-
 	#Moving average
 	ma1 = dp.moving_average(r1.close, int(MA1))
 	ma2 = dp.moving_average(r2.close, int(MA1))
@@ -1936,15 +1955,15 @@ def disp_2stock_graph(stock1,stock2):
 	ax3t = ax3.twinx()
 	#print self.r.date
 	#r.date error
-	#xdata = r.date
-	xdata = range(0,len(r1.close))
+	if(DATE):
+		xdata = r.date
+	else:
+		xdata = range(0,len(r1.close))
 
 	ax1.plot(xdata, rsi1, color='blue')
 	ax1.plot(xdata, rsi2, color='red')
 	ax1.axhline(70, color=fillcolor)
 	ax1.axhline(30, color=fillcolor)
-	#ax1.fill_between(xdata, rsi, 70, where=(rsi>=70), facecolor=fillcolor, edgecolor=fillcolor)
-	#ax1.fill_between(xdata, rsi, 30, where=(rsi<=30), facecolor=fillcolor, edgecolor=fillcolor)
 	ax1.text(0.6, 0.9, '>70 = overbought', va='top', transform=ax1.transAxes, fontsize=textsize)
 	ax1.text(0.6, 0.1, '<30 = oversold', transform=ax1.transAxes, fontsize=textsize)
 	ax1.set_ylim(0, 100)
@@ -1956,17 +1975,22 @@ def disp_2stock_graph(stock1,stock2):
 		ax1.set_title(str(stock1.name).decode('utf-8') + " VS " + str(stock2.name).decode('utf-8'), fontproperties=props_jp)
 	else:
 		ax1.set_title(str(stock1.id) + " VS " + str(stock2.id))
+	if(DATE):
+		deltas = np.zeros_like(r1.close)
+		deltas[1:] = np.diff(r1.close)
+		up = deltas>0
+		ax2.vlines(xdata[up], r1.low[up], r1.high[up], color='blue', label='_nolegend_')
+		ax2.vlines(xdata[~up], r1.low[~up],r1.high[~up], color='blue', label='_nolegend_')
 
-	ax2.plot(xdata, r1.close, color='blue', lw=2, label=str(stock1.id))
-	ax2t.plot(xdata, r2.close, color='red', lw=2, label=str(stock2.id))
+		deltas = np.zeros_like(r2.close)
+		deltas[1:] = np.diff(r2.close)
+		up = deltas>0
+		ax2.vlines(xdata[up], r2.low[up], r2.high[up], color='red', label='_nolegend_')
+		ax2.vlines(xdata[~up], r2.low[~up],r2.high[~up], color='red', label='_nolegend_')
+	else:
+		ax2.plot(xdata, r1.close, color='blue', lw=2, label=str(stock1.id))
+		ax2t.plot(xdata, r2.close, color='red', lw=2, label=str(stock2.id))
 	#print r.date
-	deltas = np.zeros_like(r1.close)
-	deltas[1:] = np.diff(r1.close)
-	up = deltas>0
-	#ax2.vlines(xdata[up], r.low[up], r.high[up], color='black', label='_nolegend_')
-	#ax2.vlines(xdata[~up], r.low[~up],r.high[~up], color='black', label='_nolegend_')
-	#linema10, = ax2.plot(xdata, ma1, color='blue', lw=2, label='MA (' + str(MA1) + ')')
-	#linema20, = ax2.plot(xdata, ma2, color='red', lw=2, label='MA (' + str(MA2) + ')')
 
 
 	leg1 = ax2.legend(loc='upper left', shadow=True, fancybox=True, prop=props)
@@ -1974,11 +1998,6 @@ def disp_2stock_graph(stock1,stock2):
 	leg2 = ax2t.legend(loc='upper right', shadow=True, fancybox=True, prop=props)
 	leg2.get_frame().set_alpha(0.5)
 
-	#volume = (r.close * r.volume)/1e6  # dollar volume in millions
-	#vmax = volume.max()
-	#poly = ax2t.fill_between(xdata, volume, 0, label=lang.VOL, facecolor=fillcolor, edgecolor=fillcolor)
-	#ax2t.set_ylim(0, 5*vmax)
-	#ax2t.set_yticks([])
 	class MyLocator(mticker.MaxNLocator):
 		def __init__(self, *args, **kwargs):
 			mticker.MaxNLocator.__init__(self, *args, **kwargs)

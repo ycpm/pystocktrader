@@ -3,17 +3,16 @@
 from string import *
 from math import *
 import os
+import wx
 import sys
 import datetime
 import time
 import locale
 import re
 import numpy as np
-#sys.path.append('./lib/')
 sys.path.append('./rule/')
 import data_process as dp
 import market as mk
-#import simple_c2 as rule
 
 LOG_DIR = "./log/"
 RESOURCE_LOG = "resource.csv"
@@ -25,6 +24,10 @@ def run(stock,trade,sim,sdt,edt,w):
 	w.progress.Update(0, 'Start simulation')
 	tmp_datas = []
 	TMP_SUM = 0
+	if(int(trade.id) < 1000):
+		rt = dp.get_price_history()
+	else:
+		rt = dp.get_data_by_day(stock,sdt,edt.year,edt.month,edt.day)
 	if(int(sim.val_num) > 1):
 		#Parametoric Simulation
 		if(float(sim.val_step) == 0.0):
@@ -60,7 +63,7 @@ def run(stock,trade,sim,sdt,edt,w):
 					trade.vals[sim.val_id2] = sim.val_start2+ j * val_step2
 					#print i,val_step ,trade.vals[sim.val_id]
 					#sim.resource_log.append(trade.vals[sim.val_id])
-					sim_loop(stock,trade,sim,sdt,edt,w)
+					sim_loop(stock,trade,sim,sdt,edt,rt,w)
 					#tmp_datas.append(sim.resource_log[-1]) #Last resource
 					tmp_csv += "," + str(sim.resource_log[-1])
 				csv_data += tmp_csv + "\n"
@@ -77,7 +80,7 @@ def run(stock,trade,sim,sdt,edt,w):
 				trade.vals[sim.val_id] = sim.val_start + i * val_step
 				#print i,val_step ,trade.vals[sim.val_id]
 				sim.resource_log.append(trade.vals[sim.val_id])
-				sim_loop(stock,trade,sim,sdt,edt,w)
+				sim_loop(stock,trade,sim,sdt,edt,rt,w)
 				tmp_datas.append(sim.resource_log)
 			tmp_csv_data = []
 			for tmp in tmp_datas[0]:
@@ -94,38 +97,35 @@ def run(stock,trade,sim,sdt,edt,w):
 	else:
 		#Single Simulation
 		sim.resource_log = []
-		sim_loop(stock,trade,sim,sdt,edt,w)
+		sim_loop(stock,trade,sim,sdt,edt,rt,w)
 		#print sim.resource_log,len(sim.resource_log)
 		csv_data = ""
 		for log in sim.resource_log:
 			csv_data += str(log) + "\n"
 		dp.write_file(LOG_DIR,RESOURCE_LOG,csv_data)
 	#print sim.val_num,sim.val_num2
-def sim_loop(stock,trade,sim,sdt,edt,w):
+def sim_loop(stock,trade,sim,sdt,edt,rt,w):
 	global TMP_SUM
 	one_day = 86400
 	#init
 	buy_sell_num = 0
 	trade.do_buy = 0
 	sim_data = ""
-	resouce_data = ""
-	end_year = edt.year
-	end_month = edt.month
-	end_day = edt.day
 	#stock.market[0] = 1
 	trade.market = stock.market[0]
-	pr_rate = 1.0
-	if(int(trade.id) < 1000):
-		rt = dp.get_price_history()
-	else:
-		rt = dp.get_data_by_day(stock,sdt,edt.year,edt.month,edt.day)
+
 	num = len(rt.close)
 	total_num = int(num)
 	if(int(sim.val_num) > 1):
 		total_num = int(num) * int(sim.val_num)
 		if(int(sim.val_num2) > 1):
 			total_num = int(num) * int(sim.val_num) * int(sim.val_num2)
+
+	stock.datas = []
 	for i in range(0,num):
+		#if(w.progress == wx.PD_CAN_ABORT):
+			#break
+		#print w.progress
 		TMP_SUM += 1
 		pr=int((float(TMP_SUM)/float(total_num )) * 1000.0)
 		if( not pr % 50.0):
@@ -135,6 +135,10 @@ def sim_loop(stock,trade,sim,sdt,edt,w):
 		#date = time.localtime(tmp_time)
 		date_data,dm = str(rt.date[i]).split(' ')
 		dt = datetime.date(*[int(val) for val in str(date_data).split('-')])
+		#Attention!
+		if(i>0):
+			stock_data = str(date_data) + "," + str(trade.market) + "," + str(rt.open[i-1]) + "," + str(rt.high[i-1]) + "," + str(rt.low[i-1]) + "," + str(rt.close[i-1]) + "," + str(rt.volume[i-1]) + "," + str(rt.aclose[i-1])
+			stock.datas.append(stock_data)
 		#print date,trade.rule
 		#rt = dp.get_data_by_day(stock,dt)
 
@@ -177,7 +181,6 @@ def sim_loop(stock,trade,sim,sdt,edt,w):
 				#flag_buy = 1
 				resource = trade.buy_num * today_close + trade.margin
 				#Log
-				#resouce_data += str(date_str) + "," + str(resource) + "\n"
 				sim.resource_log.append(resource)
 				#tmp_time += one_day
 				continue
