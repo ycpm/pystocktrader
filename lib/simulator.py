@@ -13,21 +13,30 @@ import numpy as np
 sys.path.append('./rule/')
 import data_process as dp
 import market as mk
-
+DAY_DATA = "DAY_"
 LOG_DIR = "./log/"
 RESOURCE_LOG = "resource.csv"
 RESOURCE_LOG2 = "resource2.csv"
 SIMU_LOG = "simulate.csv"
 TMP_SUM = 0
+DAY_FLAG = False
+BUY_CUNT_LIMIT = 1
+SELL_CUNT_LIMIT = 1
 def run(stock,trade,sim,sdt,edt,w):
-	global TMP_SUM
+	global TMP_SUM #, DAY_FLAG
 	w.progress.Update(0, 'Start simulation')
 	tmp_datas = []
 	TMP_SUM = 0
-	if(int(trade.id) < 1000):
-		rt = dp.get_price_history()
-	else:
-		rt = dp.get_data_by_day(stock,sdt,edt.year,edt.month,edt.day)
+	#if(int(trade.id) < 1000):
+	#if(re.search(DAY_DATA,str(trade.id))):
+	#	DAY_FLAG = True
+	#else:
+	#	DAY_FLAG = False
+
+	rt = dp.get_data_by_day(stock,sdt,edt.year,edt.month,edt.day)
+	if(len(rt.close) < 1):
+		print "No data"
+		return
 	if(int(sim.val_num) > 1):
 		#Parametoric Simulation
 		if(float(sim.val_step) == 0.0):
@@ -65,7 +74,8 @@ def run(stock,trade,sim,sdt,edt,w):
 					#sim.resource_log.append(trade.vals[sim.val_id])
 					sim_loop(stock,trade,sim,sdt,edt,rt,w)
 					#tmp_datas.append(sim.resource_log[-1]) #Last resource
-					tmp_csv += "," + str(sim.resource_log[-1])
+					if(len(sim.resource_log)):
+						tmp_csv += "," + str(sim.resource_log[-1])
 				csv_data += tmp_csv + "\n"
 				dp.write_file(LOG_DIR,RESOURCE_LOG2,csv_data)
 
@@ -111,6 +121,8 @@ def sim_loop(stock,trade,sim,sdt,edt,rt,w):
 	buy_sell_num = 0
 	trade.do_buy = 0
 	sim_data = ""
+	buy_count = {}
+	sell_count = {}
 	#stock.market[0] = 1
 	trade.market = stock.market[0]
 
@@ -134,6 +146,10 @@ def sim_loop(stock,trade,sim,sdt,edt,rt,w):
 			w.progress.Update(pr2, 'Progress ...')
 		#date = time.localtime(tmp_time)
 		date_data,dm = str(rt.date[i]).split(' ')
+		if not buy_count.has_key(str(date_data)):
+			buy_count[str(date_data)] = 0
+		if not sell_count.has_key(str(date_data)):
+			sell_count[str(date_data)] = 0
 		dt = datetime.date(*[int(val) for val in str(date_data).split('-')])
 		#Attention!
 		if(i>0):
@@ -150,7 +166,11 @@ def sim_loop(stock,trade,sim,sdt,edt,rt,w):
 		trade.price_history.append(trade.price)
 		date_str = str(rt.date[i])
 		trade.sell_num = trade.hold_num
-		if(int(trade.margin)- trade.limit > 0 and trade.do_buy == 0):
+		#if(buy_count[str(date_data)] >= BUY_CUNT_LIMIT):
+		#	print buy_count[str(date_data)], sell_count[str(date_data)]
+		#if(sell_count[str(date_data)] >= SELL_CUNT_LIMIT):
+		#	print buy_count[str(date_data)], sell_count[str(date_data)]
+		if( int(trade.margin)- trade.limit > 0 and trade.do_buy == 0 and buy_count[str(date_data)] < BUY_CUNT_LIMIT):
 			#print "BUY"
 			trade.buy_total_price = 0
 			wish_buy_price, trade.buy_type = trade.rule.buy(stock,trade,dt)
@@ -178,13 +198,14 @@ def sim_loop(stock,trade,sim,sdt,edt,rt,w):
 				trade.hold_num += trade.buy_num
 				trade.do_buy = 1
 				trade.do_sell = 0
+				buy_count[str(date_data)] += 1
 				#flag_buy = 1
 				resource = trade.buy_num * today_close + trade.margin
 				#Log
 				sim.resource_log.append(resource)
 				#tmp_time += one_day
 				continue
-		if(int(trade.hold_num) > 0 and trade.do_sell == 0):
+		if(int(trade.hold_num) > 0 and trade.do_sell == 0 and sell_count[str(date_data)] < SELL_CUNT_LIMIT):
 			#print "SELL"
 			sell_price = 0
 			wish_sell_price, trade.sell_type = trade.rule.sell(stock,trade,dt)
@@ -215,6 +236,7 @@ def sim_loop(stock,trade,sim,sdt,edt,rt,w):
 				trade.hold_num -= trade.sell_num
 				trade.do_buy = 0
 				trade.do_sell = 1
+				sell_count[str(date_data)] += 1
 				resource = trade.margin
 				sim.resource_log.append(resource)
 				#tmp_time += one_day
