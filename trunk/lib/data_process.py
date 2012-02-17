@@ -22,9 +22,8 @@ stock_dt = np.dtype([('date', object),
 STOCK_MIN = 1300
 STOCK_MAX = 9999
 
-LOG_DIR = "./log/"
-TMP_PRICE_LOG = "tmp_price.csv"
-PRICE_LOG = "price.csv"
+DAY_DATA = "DAY_"
+
 def coeffs(datas,num):
 	dn = len(datas)
 	#n = int(dn / num)
@@ -177,25 +176,16 @@ def dc_cut(datas):
 		out_datas.append(float(data) - data_mid)
 	return out_datas
 
-def get_price_history():
-	datas = open_file(LOG_DIR,PRICE_LOG)
+def get_price_history(stock):
+	price_data = open_file(stock.data_dir,str(stock.id)+".csv")
 	csv_data = []
-	date = "2010-1-1"
-	for data in datas:
-		if not data:
-			continue
-		csv_data.append(str(date) + ",1," + str(data) + "," + str(data) + "," + str(data) + "," + str(data) + ",0," +  str(data))
-	return csv2rec(csv_data)
-
-def get_price_history_tmp():
-	datas = open_file(LOG_DIR,TMP_PRICE_LOG)
-	csv_data = []
-	for data in datas:
+	#date = "2010-1-1"
+	for data in price_data:
 		if not data:
 			continue
 		date,price = data.split(",")
 		date,dm = date.split(" ")
-		csv_data.append(str(date) + ",1," + str(price) + "," + str(price) + "," + str(price) + "," + str(price) + ",0," + str(price))
+		csv_data.append(str(date) + ",1," + str(price) + "," + str(price) + "," + str(price) + "," + str(price) + ",0," +  str(price))
 	return csv2rec(csv_data)
 
 def csv2rec(csv_datas):
@@ -279,23 +269,26 @@ def get_updown_num(stock,num):
 		last_close = close
 	return ud_num
 def get_all_datas(stock):
-	if(is_num(stock.id) and int(stock.id) < 1000):
-		pdatas = open_file(LOG_DIR,PRICE_LOG)
-		datas = []
-		date = "2010-1-1"
-		for data in pdatas:
-			if not data:
+	if(re.search(DAY_DATA,str(stock.id))):
+		file_name = str(stock.id) + ".csv"
+		pdata = open_file(stock.data_dir,file_name)
+		data = []
+		for val in pdata:
+			val.strip()
+			if not val:
 				continue
-			datas.append(str(date) + ",1," + str(data) + "," + str(data) + "," + str(data) + "," + str(data) + ",0" +  str(data))
+			date,price =val.split(",")
+			date,dm = date.split(" ")
+			data.append(str(date) + ",1," + str(price) + "," + str(price) + "," + str(price) + "," + str(price) + ",0," +  str(price))
 	else:
 		file_name = str(stock.id) + ".csv"
-		datas = open_file(stock.data_dir,file_name)
-	if len(datas) > 0:
-		str(datas[-1]).strip()
-		if not datas[-1]:
-			datas.pop(-1)
+		data = open_file(stock.data_dir,file_name)
+	if len(data) > 0:
+		str(data[-1]).strip()
+		if not data[-1]:
+			data.pop(-1)
 		#return  csv2rec(datas)
-	return datas
+	return data
 def get_last_ndata(stock,num):
 	ret_datas = []
 	if len(stock.datas) > int(num):
@@ -424,9 +417,12 @@ def get_stock_detail(stock):
 				stock.np = int(datail_data[18])	#当期利益 net profit
 				stock.ta = int(datail_data[22])	#総資産
 				stock.lc = int(datail_data[22])	#資本金
-				stock.er = float(datail_data[26])	#自己資本比率[%]
-				stock.roa = float(datail_data[28])	#ROA（総資産利益率）[%]
-				stock.roe = float(datail_data[29])	#ROE（自己資本利益率）[%]
+				if(is_num(datail_data[26])):
+					stock.er = float(datail_data[26])	#自己資本比率[%]
+				if(is_num(datail_data[28])):
+					stock.roa = float(datail_data[28])	#ROA（総資産利益率）[%]
+				if(is_num(datail_data[29])):
+					stock.roe = float(datail_data[29])	#ROE（自己資本利益率）[%]
 			return
 
 def get_day_average(stock,dt,num):

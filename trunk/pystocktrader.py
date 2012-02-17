@@ -35,6 +35,7 @@ ICON_DIR = "./icons/small/"
 ICON_DIR = "./icons/"
 FONT_DIR = "./font/"
 DATE = 0
+DAY_DATA = "DAY_"
 
 PRJ_DIR = "./project/"
 PRJ_NAME = "TEST"
@@ -88,7 +89,14 @@ DL_CYCLE = 0
 
 MA1 = 25
 MA2 = 100
-
+#RSI RCI
+RSI_RCI=0	#0:RSI, 1:RCI
+RSI_DAY = 14
+RCI_DAY = 9
+RSI_UPPER = 70
+RSI_LOWER = 30
+RCI_UPPER = 90
+RCI_LOWER = -90
 #Flag
 DONE_SIM = 0
 
@@ -116,6 +124,15 @@ MIN_ROA = 0
 MAX_ROE = 100.0
 MIN_ROE = 0
 
+#wx FONT
+WX_FONT_SIZE = 10
+WX_FONT_FAMLY = "wxDEFAULT"
+WX_FONT_FACE = "Verdana"
+WX_FONT_STYLE = "wxNORMAL"
+#Font
+GRAPH_FONT_SIZE = 10
+GRAPH_FONT_FAMLY = "sans-serif"
+GRAPH_FONT_STYLE = "normal"
 class user:
 	def __init__(self):
 		self.id = ""
@@ -137,6 +154,7 @@ class trade:
 		self.high = 0
 		self.last = 0
 		self.price_history = []
+		self.day_price = []
 		self.board_datas = []
 		self.buy_price = 0
 		self.sell_price = 0
@@ -256,11 +274,14 @@ class MainFrame(wx.Frame):
 		menuSearchSetUp = setupmenu.Append(wx.NewId(),lang.MENU_SEARCH," Set up Stock Search")
 		menuDataSetUp = setupmenu.Append(wx.NewId(),lang.MENU_DATASITE," Set up Data Site")
 		menuSetUp = setupmenu.Append(wx.ID_SETUP,lang.MENU_TRADE," Set up Trade")
-
+		viewmenu = wx.Menu()
+		menuWFontSetUp = viewmenu.Append(wx.NewId(),lang.MENU_WFONT," Set up Window Font")
+		menuGFontSetUp = viewmenu.Append(wx.NewId(),lang.MENU_GFONT," Set up Graph Font")
 		# Creating the menubar.
 		menuBar = wx.MenuBar()
 		menuBar.Append(filemenu,lang.MENU_FILE) # Adding the "filemenu" to the MenuBar
 		menuBar.Append(setupmenu,lang.MENU_SETUP) # Adding the "filemenu" to the MenuBar
+		menuBar.Append(viewmenu,lang.MENU_VIEW_SETUP) # Adding the "filemenu" to the MenuBar
 		self.SetMenuBar(menuBar)  # Adding the MenuBar to the Frame content.
 
 		#Event for Menu bar
@@ -272,6 +293,8 @@ class MainFrame(wx.Frame):
 		self.Bind(wx.EVT_MENU, self.OnDataSetUp, menuDataSetUp)
 		self.Bind(wx.EVT_MENU, self.OnViewSetUp, menuViewSetUp)
 		self.Bind(wx.EVT_MENU, self.OnSearchSetUp, menuSearchSetUp)
+		self.Bind(wx.EVT_MENU, self.OnWFont, menuWFontSetUp)
+		self.Bind(wx.EVT_MENU, self.OnGFont, menuGFontSetUp)
 		toolbar = self.CreateToolBar()
 		view_set = toolbar.AddLabelTool(wx.NewId(), 'Setup', wx.Bitmap(ICON_DIR + 'SetView.png', wx.BITMAP_TYPE_ANY),wx.NullBitmap, wx.ITEM_NORMAL, "", "")
 		view = toolbar.AddLabelTool(wx.NewId(), 'View', wx.Bitmap(ICON_DIR + 'View.png', wx.BITMAP_TYPE_ANY),wx.NullBitmap, wx.ITEM_NORMAL, "", "")
@@ -330,19 +353,41 @@ class MainFrame(wx.Frame):
 		self.panel2.SetSizer(hbox1)
 		vbox.Add(self.panel2, 1,  wx.LEFT | wx.RIGHT | wx.EXPAND, 2)
 
-		hbox5 = wx.BoxSizer(wx.HORIZONTAL)
-		btn2 = wx.Button(panel, -1, lang.CLOSE, size=(70, 30))
-		hbox5.Add(btn2, 0, wx.LEFT | wx.BOTTOM , 5)
-		vbox.Add(hbox5, 0, wx.ALIGN_RIGHT | wx.RIGHT, 10)
+		hbox2 = wx.BoxSizer(wx.HORIZONTAL)
+		rsi_btn = wx.ToggleButton(panel, 1, 'RSI', (20, 25))
+		rci_btn = wx.ToggleButton(panel, 2, 'RCI', (40, 25))
+		#wx.ToggleButton(self, 3, 'blue', (20, 100))
+		#btn2 = wx.Button(panel, -1, lang.CLOSE, size=(70, 30))
+		hbox2.Add(rsi_btn, 0, wx.LEFT | wx.BOTTOM , 5)
+		hbox2.Add(rci_btn, 0, wx.LEFT | wx.BOTTOM , 5)
+		vbox.Add(hbox2, 0, wx.ALIGN_RIGHT | wx.RIGHT, 10)
 
 		panel.SetSizer(vbox)
 		self.Centre()
 		self.Show(True)
 
 		#Event
-		self.Bind(wx.EVT_BUTTON, self.OnExit, btn2)
+		#self.Bind(wx.EVT_BUTTON, self.OnExit, btn2)
+		self.Bind(wx.EVT_TOGGLEBUTTON, self.ToggleRSI, id=1)
+		self.Bind(wx.EVT_TOGGLEBUTTON, self.ToggleRCI, id=2)
 
-
+		self.plot.fig.clear()
+		if self.plot.set_data():
+			self.plot.setsize()
+			self.plot.draw()
+			self.plot.fig.canvas.draw()
+	def ToggleRSI(self,e):
+		global RSI_RCI
+		RSI_RCI=0
+		self.plot.fig.clear()
+		if self.plot.set_data():
+			self.plot.setsize()
+			self.plot.draw()
+			self.plot.fig.canvas.draw()
+		
+	def ToggleRCI(self,e):
+		global RSI_RCI
+		RSI_RCI=1
 		self.plot.fig.clear()
 		if self.plot.set_data():
 			self.plot.setsize()
@@ -370,10 +415,11 @@ class MainFrame(wx.Frame):
 		self.prj_txt.SetLabel(lang.PROJECT_FILE + " : " + PRJ_FILE)
 		self.prj_name.SetLabel(lang.PROJECT_NAME + " : " + PRJ_NAME)
 		self.plot.fig.clear()
-		self.plot.set_data()
-		self.plot.setsize()
-		self.plot.draw()
-		self.plot.fig.canvas.draw()
+		if self.plot.set_data():
+			self.plot.setsize()
+			self.plot.draw()
+			self.plot.fig.canvas.draw()
+
 	def OnSimuSetUp(self,e):
 		simusetup = SimuSetUp(None, -1, lang.SIMU_SETUP)
 		simusetup.ShowModal()
@@ -397,10 +443,10 @@ class MainFrame(wx.Frame):
 		DONE_SIM = 0
 		self.plot.fig.clear()
 		#self.plot.fig.canvas.draw()
-		self.plot.set_data()
-		self.plot.setsize()
-		self.plot.draw()
-		self.plot.fig.canvas.draw()
+		if self.plot.set_data():
+			self.plot.setsize()
+			self.plot.draw()
+			self.plot.fig.canvas.draw()
 	def OnSim(self,e):
 		global DONE_SIM
 		sdt = datetime.date(*[int(val) for val in START_DATE.split('-')])
@@ -425,18 +471,15 @@ class MainFrame(wx.Frame):
 		sim.run(stock,tr,sim_data,sdt,edt,self)
 		self.progress.Update(100, lang.SIMU_PRO_FINISH)
 		self.progress.Destroy()
-		#dlg = wx.MessageDialog(self, "Simulation is finished", "Simulation is finished" , wx.OK)
-		#dlg.ShowModal() # Shows it
-		#dlg.Destroy()
 		DONE_SIM = 1
 		if(int(sim_data.val_num2) > 1):
 			disp_2d()
 		else:
 			self.plot.fig.clear()
-			self.plot.set_data()
-			self.plot.setsize()
-			self.plot.draw()
-			self.plot.fig.canvas.draw()
+			if self.plot.set_data():
+				self.plot.setsize()
+				self.plot.draw()
+				self.plot.fig.canvas.draw()
 
 	def OnSave(self,e):
 		save = SaveProject(None, -1, lang.SAVE_PRJ)
@@ -459,7 +502,6 @@ class MainFrame(wx.Frame):
 		sd.ShowModal()
 		sd.Destroy()
 	def OnDownLoad(self,e):
-		#print "Start data download"
 		dl = get_plugin(DATA_SITE_DIR,DATA_SITE)
 		stock_ids = [int(stock_id) for stock_id in DL_STOCK_CODES.split(",")]
 		dl.get_stock_data(stock_ids)
@@ -467,7 +509,6 @@ class MainFrame(wx.Frame):
 	def OnDetailDL(self,e):
 		ddl = wx.MessageBox(lang.DL_CONFIRM, lang.CONFIRM, wx.YES_NO | wx.NO_DEFAULT| wx.ICON_QUESTION)
 		if ddl == wx.YES:
-			#print "Start detail data download"
 			self.progress = wx.ProgressDialog(lang.DetailDL_TITLE,lang.DetailDL_PRO_MSG, maximum = 100, parent=self, style = wx.PD_CAN_ABORT | wx.PD_AUTO_HIDE | wx.PD_APP_MODAL)
 			self.progress.SetSize((300, 100))
 			gd.get_detail_data(self)
@@ -479,7 +520,6 @@ class MainFrame(wx.Frame):
 		tr= trade(TARGET_CODE)
 		stock = stock_data(TARGET_CODE)
 		tr.market = TARGET_MARKET
-		#trade_type = ["Sashi","Nari"]
 		sell_wish_price, sell_type,buy_wish_price, buy_type = today_trade(stock,tr)
 		if(sell_wish_price > 0):
 			sell_msg = str(sell_wish_price) + "," + lang.TRADE_TYPE[int(sell_type)]
@@ -491,10 +531,71 @@ class MainFrame(wx.Frame):
 			buy_msg = lang.NO_TRADE
 		msg = lang.BUY + " : " + buy_msg + "\n" + lang.SELL + " : " + sell_msg 
 		wx.MessageBox(msg, lang.TODAY_TRADE, wx.OK | wx.ICON_INFORMATION)
+	def OnWFont(self,e):
+		global WX_FONT_SIZE, WX_FONT_FAMLY, WX_FONT_FACE, WX_FONT_STYLE
+		default_font = wx.Font(10, wx.SWISS , wx.NORMAL, wx.NORMAL, False, "Verdana")
+		data = wx.FontData()
+		if sys.platform == 'win32':
+			data.EnableEffects(True)
+		data.SetAllowSymbols(False)
+		data.SetInitialFont(default_font)
+		data.SetRange(10, 30)
+		dlg = wx.FontDialog(self, data)
+		if dlg.ShowModal() == wx.ID_OK:
+			data = dlg.GetFontData()
+			font = data.GetChosenFont()
+			color = data.GetColour()
+			text = 'Face: %s, Famly: %s, Size: %d, Style No: %d, Style: %s, Color: %s' % (font.GetFaceName(),font.GetFamilyString(), font.GetPointSize(), font.GetStyle(), font.GetStyleString(), color.Get())
+			WX_FONT_SIZE = font.GetPointSize()
+			WX_FONT_FAMLY = font.GetFamilyString()
+			WX_FONT_FACE = font.GetFaceName()
+			WX_FONT_STYLE = font.GetStyle()
+			#self.SetStatusText(text)
+		dlg.Destroy()
+		wx.MessageBox(text, "Font data", wx.OK | wx.ICON_INFORMATION)
+	def OnGFont(self,e):
+		global GRAPH_FONT_SIZE, GRAPH_FONT_FAMLY, GRAPH_FONT_FACE, GRAPH_FONT_STYLE
+		default_font = wx.Font(10, wx.SWISS , wx.NORMAL, wx.NORMAL, False, "Verdana")
+		data = wx.FontData()
+		if sys.platform == 'win32':
+			data.EnableEffects(True)
+		data.SetAllowSymbols(False)
+		data.SetInitialFont(default_font)
+		data.SetRange(10, 30)
+		dlg = wx.FontDialog(self, data)
+		if dlg.ShowModal() == wx.ID_OK:
+			data = dlg.GetFontData()
+			font = data.GetChosenFont()
+			color = data.GetColour()
+			#text = 'Face: %s, Famly: %s, Size: %d, Style No: %d, Style: %s, Color: %s' % (font.GetFaceName(),font.GetFamilyString(), font.GetPointSize(), font.GetStyle(), font.GetStyleString(), color.Get())
+			GRAPH_FONT_SIZE = int(font.GetPointSize())
+			#GRAPH_FONT_FAMLY = font.GetFamilyString()
+			GRAPH_FONT_FAMLY = font.GetFaceName()
+			#GRAPH_FONT_FACE = font.GetFaceName()
+			#if(GRAPH_FONT_FAMLY ==):
+			GRAPH_FONT_STYLE = font.GetStyle()
+			#wxITALIC,wxNORMAL
+			if(GRAPH_FONT_STYLE == "wxITALIC"):
+				GRAPH_FONT_STYLE = "italic"
+			else:
+				GRAPH_FONT_STYLE = "normal"
+
+			#self.SetStatusText(text)
+		dlg.Destroy()
+		self.plot.fig.clear()
+		if self.plot.set_data():
+			self.plot.setsize()
+			self.plot.draw()
+			self.plot.fig.canvas.draw()
+		#wx.MessageBox(text, "Font data", wx.OK | wx.ICON_INFORMATION)
+	def OnGFont_test(self,e):
+		gf = SetGraphFont(None, -1, "Graph Font")
+		gf.ShowModal()
+		gf.Destroy()
+
 class myWxPlot(wx.Panel):
 	def __init__( self, parent):
 		from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg
-		#from matplotlib.figure import Figure
 		
 		self.parent = parent
 		wx.Panel.__init__( self, parent)
@@ -502,7 +603,6 @@ class myWxPlot(wx.Panel):
 		plt.rc('axes', grid=True)
 		plt.rc('grid', color='0.75', linestyle='-', linewidth=0.5)
 
-		#self.fig = figure(facecolor='white')
 		self.fig = plt.Figure( None, facecolor='white')
 
 		#canvas
@@ -522,20 +622,18 @@ class myWxPlot(wx.Panel):
 		margin = int(MA2)
 		if(margin < int(MA1)):
 			margin =int(MA1)
-		if(dp.is_num(TARGET_CODE) and int(TARGET_CODE) < 1000):
-			self.r = dp.get_price_history()
-			n =len(self.r.close)
-			if(n < 1):
-				return False
-			r2 = self.r
-		else:
-			self.r = dp.get_data_by_day(self.stock,s_dt,e_dt.year,e_dt.month,e_dt.day)
-			n =len(self.r.close)
-			if(n < 1):
-				print "Error"
-				return False
-			#margin = 30
-			r2 = dp.get_data_by_day_num(self.stock,e_dt,n+margin)
+		self.r = dp.get_data_by_day(self.stock,s_dt,e_dt.year,e_dt.month,e_dt.day)
+		n =len(self.r.close)
+		if(n < 1):
+			print "Data Error r"
+			return False
+		#margin = 30
+		r2 = dp.get_data_by_day_num(self.stock,e_dt,n+margin)
+		if(len(r2.close)  < 1):
+			print "Data Error r2"
+			return False
+		if(len(r2.close)<=n):
+			r2=self.r
 		#print r2.close
 		#Moving average
 		if(len(r2.close) >= int(MA1)):
@@ -548,17 +646,20 @@ class myWxPlot(wx.Panel):
 		else:
 			MA2 = len(r2.close)
 			ma2 = dp.moving_average(r2.close, int(MA2))
-		#ma1 = dp.moving_average(r2.close, int(MA1))
-		#ma2 = dp.moving_average(r2.close, int(MA2))
 		if(len(ma1) > n):
 			self.ma1 = ma1[margin:]
 			self.ma2 = ma2[margin:]
 		else:
 			self.ma1 = ma1
 			self.ma2 = ma2
-
-		#RSI
-		self.rsi = dp.relative_strength(self.r.close)
+		if(RSI_RCI==0):
+			self.rsi = dp.relative_strength(self.r.close,RSI_DAY)
+			self.rsi_rci_upper = RSI_UPPER
+			self.rsi_rci_lower = RSI_LOWER
+		else:
+			self.rsi = dp.rci_array(self.r.close,RCI_DAY)
+			self.rsi_rci_upper = RCI_UPPER
+			self.rsi_rci_lower = RCI_LOWER
 
 		if(DONE_SIM):
 			#self.res_dates = []
@@ -610,7 +711,7 @@ class myWxPlot(wx.Panel):
 			#print self.r.date
 		else:
 			xdata = range(0,len(self.r.close))
-		props = font_manager.FontProperties(size=10)
+		props = font_manager.FontProperties(family=GRAPH_FONT_FAMLY, style=GRAPH_FONT_STYLE, size=GRAPH_FONT_SIZE)
 		textsize = 9
 		fillcolor = 'darkgoldenrod'
 		axescolor  = '#f6f6f6'  # the axies background color
@@ -630,15 +731,19 @@ class myWxPlot(wx.Panel):
 			#print "UnicodeDecodeError"
 			#xdata = range(0,len(self.r.close))
 			#ax1.plot(xdata, self.rsi, color=fillcolor)
-		ax1.axhline(70, color=fillcolor)
-		ax1.axhline(30, color=fillcolor)
-		ax1.fill_between(xdata, self.rsi, 70, where=(self.rsi>=70), facecolor=fillcolor, edgecolor=fillcolor)
-		ax1.fill_between(xdata, self.rsi, 30, where=(self.rsi<=30), facecolor=fillcolor, edgecolor=fillcolor)
-		ax1.text(0.6, 0.9, '>70 = overbought', va='top', transform=ax1.transAxes, fontsize=textsize)
-		ax1.text(0.6, 0.1, '<30 = oversold', transform=ax1.transAxes, fontsize=textsize)
-		ax1.set_ylim(0, 100)
-		ax1.set_yticks([30,70])
-		ax1.text(0.025, 0.95, 'RSI (14)', va='top', transform=ax1.transAxes, fontsize=textsize)
+		ax1.axhline(self.rsi_rci_upper, color=fillcolor)
+		ax1.axhline(self.rsi_rci_lower, color=fillcolor)
+		ax1.fill_between(xdata, self.rsi, self.rsi_rci_upper, where=(self.rsi>=self.rsi_rci_upper), facecolor=fillcolor, edgecolor=fillcolor)
+		ax1.fill_between(xdata, self.rsi, self.rsi_rci_lower, where=(self.rsi<=self.rsi_rci_lower), facecolor=fillcolor, edgecolor=fillcolor)
+		ax1.text(0.6, 0.9, '>' + str(self.rsi_rci_upper) + ' = overbought', va='top', transform=ax1.transAxes, fontsize=textsize)
+		ax1.text(0.6, 0.1, '<' + str(self.rsi_rci_lower) + ' = oversold', transform=ax1.transAxes, fontsize=textsize)
+		ax1.set_yticks([self.rsi_rci_lower,self.rsi_rci_upper])
+		if(RSI_RCI==0):	#RSI
+			ax1.set_ylim(0, 100)
+			ax1.text(0.025, 0.95, 'RSI (' + str(RSI_DAY) + ')', va='top', transform=ax1.transAxes, fontsize=textsize)
+		else:
+			ax1.set_ylim(-200, 200)
+			ax1.text(0.025, 0.95, 'RCI (' + str(RCI_DAY) + ')', va='top', transform=ax1.transAxes, fontsize=textsize)
 
 		if(LANG == "jp"):
 			props_jp = font_manager.FontProperties(size=12,fname=FONT_DIR + FONT)
@@ -1289,7 +1394,7 @@ class ViewSetUp(wx.Dialog):
 		self.stop_day.SetSelection(int(ed_day) - 1)
 		sizer.Add(self.stop_day, (2, 3), (1, 1), wx.TOP | wx.EXPAND,  5)
 
-
+		#MA
 		ma1_txt = wx.StaticText(panel, -1, lang.MA1)
 		sizer.Add(ma1_txt, (3, 0), flag= wx.LEFT | wx.TOP, border=10)
 		self.ma1 = wx.TextCtrl(panel, -1)
@@ -1302,11 +1407,49 @@ class ViewSetUp(wx.Dialog):
 		self.ma2.SetValue(str(MA2))
 		sizer.Add(self.ma2, (3, 3), (1, 1), wx.TOP | wx.EXPAND,  5)
 
+		#RSI
+		rsi_day_txt = wx.StaticText(panel, -1, lang.RSI_DAY)
+		sizer.Add(rsi_day_txt, (4, 0), flag= wx.LEFT | wx.TOP, border=10)
+		self.rsi_day = wx.TextCtrl(panel, -1)
+		self.rsi_day.SetValue(str(RSI_DAY))
+		sizer.Add(self.rsi_day, (4, 1), (1, 1), wx.TOP | wx.EXPAND,  5)
+
+		rsi_upper_txt = wx.StaticText(panel, -1, lang.RSI_UPPER)
+		sizer.Add(rsi_upper_txt, (4, 2), flag= wx.LEFT | wx.TOP, border=10)
+		self.rsi_upper = wx.TextCtrl(panel, -1)
+		self.rsi_upper.SetValue(str(RSI_UPPER))
+		sizer.Add(self.rsi_upper, (4, 3), (1, 1), wx.TOP | wx.EXPAND,  5)
+
+		rsi_lower_txt = wx.StaticText(panel, -1, lang.RSI_LOWER)
+		sizer.Add(rsi_lower_txt, (4, 4), flag= wx.LEFT | wx.TOP, border=10)
+		self.rsi_lower = wx.TextCtrl(panel, -1)
+		self.rsi_lower.SetValue(str(RSI_LOWER))
+		sizer.Add(self.rsi_lower, (4, 5), (1, 1), wx.TOP | wx.EXPAND,  5)
+
+		#RCI
+		rci_day_txt = wx.StaticText(panel, -1, lang.RCI_DAY)
+		sizer.Add(rci_day_txt, (5, 0), flag= wx.LEFT | wx.TOP, border=10)
+		self.rci_day = wx.TextCtrl(panel, -1)
+		self.rci_day.SetValue(str(RCI_DAY))
+		sizer.Add(self.rci_day, (5, 1), (1, 1), wx.TOP | wx.EXPAND,  5)
+
+		rci_upper_txt = wx.StaticText(panel, -1, lang.RCI_UPPER)
+		sizer.Add(rsi_upper_txt, (5, 2), flag= wx.LEFT | wx.TOP, border=10)
+		self.rci_upper = wx.TextCtrl(panel, -1)
+		self.rci_upper.SetValue(str(RCI_UPPER))
+		sizer.Add(self.rci_upper, (5, 3), (1, 1), wx.TOP | wx.EXPAND,  5)
+
+		rci_lower_txt = wx.StaticText(panel, -1, lang.RCI_LOWER)
+		sizer.Add(rsi_lower_txt, (5, 4), flag= wx.LEFT | wx.TOP, border=10)
+		self.rci_lower = wx.TextCtrl(panel, -1)
+		self.rci_lower.SetValue(str(RCI_LOWER))
+		sizer.Add(self.rci_lower, (5, 5), (1, 1), wx.TOP | wx.EXPAND,  5)
+		#Button
 		ok_button = wx.Button(panel, -1, lang.OK, size=(-1, 30))
-		sizer.Add(ok_button, (6, 2), (1, 1),  wx.LEFT, 10)
+		sizer.Add(ok_button, (7, 2), (1, 1),  wx.LEFT, 10)
 
 		close_button = wx.Button(panel, -1, lang.CLOSE, size=(-1, 30))
-		sizer.Add(close_button, (6, 3), (1, 1),  wx.LEFT | wx.BOTTOM | wx.RIGHT, 10)
+		sizer.Add(close_button, (7, 3), (1, 1),  wx.LEFT | wx.BOTTOM | wx.RIGHT, 10)
 		sizer.AddGrowableCol(2)
 
 		panel.SetSizer(sizer)
@@ -1319,13 +1462,25 @@ class ViewSetUp(wx.Dialog):
 		self.Show(True)
 
 	def OnOK(self,e):	
-		global TARGET_CODE, START_DATE,END_DATE,MA1,MA2
+		global TARGET_CODE, START_DATE,END_DATE,MA1,MA2,RSI_DAY,RSI_UPPER,RSI_LOWER,RCI_DAY,RCI_UPPER,RCI_LOWER
 		if(self.code.GetValue()):
 			TARGET_CODE = self.code.GetValue()
 		if(self.ma1.GetValue()):
 			MA1 = int(self.ma1.GetValue())
 		if(self.ma2.GetValue()):
 			MA2 = int(self.ma2.GetValue())
+		if(self.rsi_day.GetValue()):
+			RSI_DAY = int(self.rsi_day.GetValue())
+		if(self.rsi_upper.GetValue()):
+			RSI_UPPER = int(self.rsi_upper.GetValue())
+		if(self.rsi_lower.GetValue()):
+			RSI_LOWER = int(self.rsi_lower.GetValue())
+		if(self.rci_day.GetValue()):
+			RCI_DAY = int(self.rci_day.GetValue())
+		if(self.rci_upper.GetValue()):
+			RCI_UPPER = int(self.rci_upper.GetValue())
+		if(self.rci_lower.GetValue()):
+			RCI_LOWER = int(self.rci_lower.GetValue())
 
 		st_year = int(self.start_year.GetSelection()) + 2000
 		st_month = int(self.start_month.GetSelection()) + 1
@@ -1552,6 +1707,7 @@ class ERROR_MSG(wx.Dialog):
 class StockSheet(sheet.CSheet):
 	def __init__(self, parent):
 		sheet.CSheet.__init__(self, parent)
+
 		labels = ["Code","Name","Category","Market","Total Volume","Dividend","PER","PBR","EPS","BPS",
 				"UNIT","Compliment","Net operating profit","Ordinary profit","Net profit","Total asset","LC","Equity Ratio","ROA","ROE"]
 #search.result.append([search.id,search.name,search.cate,search.market,search.vol,search.dividend,
@@ -1618,12 +1774,76 @@ class Stock_data(wx.Dialog):
 		nb = wx.Notebook(self, -1, style=wx.NB_BOTTOM)
 		self.sheet1 = StockSheet(nb)
 		nb.AddPage(self.sheet1, 'Stock Sheet1')
+
 		self.sheet1.SetFocus()
+
 		self.Centre()
 		self.Show()
 
 	def OnQuit(self, event):
 		self.Close()
+class SetGraphFont(wx.Dialog):
+	def __init__(self, parent, id, title):
+		wx.Dialog.__init__(self, parent, id, title, size=(250, 210))
+		self.dirname=''
+		p=font_manager.FontProperties()
+		fonts =p.get_family()
+		font_size = ['10', '11', '12', '14', '16']
+		panel = wx.Panel(self, -1)
+		sizer = wx.GridBagSizer(0, 0)
+
+		font_txt = wx.StaticText(panel, -1, lang.PROJECT_FILE)
+		sizer.Add(font_txt, (0, 0), flag= wx.LEFT | wx.TOP, border=10)
+
+		self.font = wx.ComboBox(self, -1, value = 'Times', choices=fonts, size=(100, -1), style=wx.CB_DROPDOWN)
+		sizer.Add(self.font, (0, 1), (1, 3), wx.TOP | wx.EXPAND, 5)
+
+		#prj_button = wx.Button(panel, -1, lang.BROWSE, size=(-1, 30))
+		#sizer.Add(prj_button, (0, 4), (1, 1), wx.TOP | wx.LEFT | wx.RIGHT , 5)
+
+
+		#prj_name_txt = wx.StaticText(panel, -1, lang.PROJECT_NAME)
+		#sizer.Add(prj_name_txt, (1, 0), flag= wx.LEFT | wx.TOP, border=10)
+
+		#self.prj_name = wx.TextCtrl(panel, -1)
+		#self.prj_name.SetValue(PRJ_NAME)
+		#sizer.Add(self.prj_name, (1, 1), (1, 3), wx.TOP | wx.EXPAND, 5)
+
+		button5 = wx.Button(panel, -1, lang.OK, size=(-1, 30))
+		sizer.Add(button5, (2, 3), (1, 1),  wx.LEFT, 10)
+
+		button6 = wx.Button(panel, -1, lang.CLOSE, size=(-1, 30))
+		sizer.Add(button6, (2, 4), (1, 1),  wx.LEFT | wx.BOTTOM | wx.RIGHT, 10)
+
+		sizer.AddGrowableCol(2)
+
+		panel.SetSizer(sizer)
+		sizer.Fit(self)
+		# Events.
+
+		self.Bind(wx.EVT_BUTTON, self.OnOK, button5)
+		self.Bind(wx.EVT_BUTTON, self.OnClose, button6)	
+		#self.Bind(wx.EVT_BUTTON, self.OnSavePrj, prj_button)
+		self.Centre()
+		self.Show(True)
+	def OnOK(self,e):
+		global PRJ_DIR,PRJ_FILE,PRJ_NAME
+		PRJ_DIR = self.dirname
+		PRJ_FILE = self.filename
+		PRJ_NAME = self.prj_name.GetValue()
+		save_prj()
+		self.Close(True)  # Close the frame.
+	def OnClose(self,e):
+		self.Close(True)  # Close the frame.
+	def OnSavePrj(self,e):
+		""" Open a file"""
+		self.dirname = PRJ_DIR
+		dlg = wx.FileDialog(self, lang.SELECT_PROJ, self.dirname, "", PRJ_EXT, wx.SAVE)
+		if dlg.ShowModal() == wx.ID_OK:
+			self.filename = dlg.GetFilename()
+			self.dirname = dlg.GetDirectory()
+			self.prj_val.SetValue(os.path.join(self.dirname, self.filename))
+		dlg.Destroy()
 def main():
 	global lang
 	lang = get_plugin(LANG_DIR, LANG)
@@ -1667,6 +1887,7 @@ def save_prj():
 	dp.write_file(PRJ_DIR,PRJ_FILE,config_data)
 def read_prj():
 	global BORDER_MONEY,TARGET_CODE, TARGET_MARKET,TARGET_MAX, USER, LOGIN_PASSWD, TRADE_PASSWD,AGENT, RULE, SIM_START_MONEY, START_DATE, END_DATE, DATA_SITE, LANG, VALS, SIM_VAL_ID, SIM_VAL_START, SIM_VAL_END, SIM_VAL_STEP, SIM_VAL_NUM, SIM_VAL_ID2, SIM_VAL_START2, SIM_VAL_END2, SIM_VAL_STEP2, SIM_VAL_NUM2, DL_CYCLE, MA1, MA2, FONT, PRJ_NAME,DL_STOCK_CODES
+	global RSI_RCI, RSI_DAY, RSI_UPPER, RSI_LOWER, RCI_DAY, RCI_UPPER, RCI_LOWER
 	if(PRJ_FILE):
 		ini = get_plugin(PRJ_DIR,PRJ_FILE)
 	else:
@@ -1702,8 +1923,44 @@ def read_prj():
 	FONT = str(ini.FONT)
 	PRJ_NAME = str(ini.PRJ_NAME)
 	DL_STOCK_CODES = str(ini.DL_STOCK_CODES)
+
+	#RSI
+	try:
+		RSI_RCI = int(ini.RSI_RCI)
+	except AttributeError:
+		print "No RSI_RCI data"
+	try:
+		RSI_DAY = int(ini.RSI_DAY)
+	except AttributeError:
+		print "No RSI_DAY data"
+	try:
+		RSI_UPPER = int(ini.RSI_UPPER)
+	except AttributeError:
+		print "No RSI_UPPER data"
+	try:
+		RSI_LOWER = int(ini.RSI_LOWER)
+	except AttributeError:
+		print "No RSI_LOWER data"
+
+	#RCI
+	try:
+		RCI_DAY = int(ini.RCI_DAY)
+	except AttributeError:
+		print "No RCI_DAY data"
+	try:
+		RCI_UPPER = int(ini.RCI_UPPER)
+	except AttributeError:
+		print "No RCI_UPPER data"
+	try:
+		RCI_LOWER = int(ini.RCI_LOWER)
+	except AttributeError:
+		print "No RCI_LOWER data"
+
 def disp_2d():
 	csv_datas = dp.open_file(LOG_DIR, RESOURCE_LOG2)
+	if(len(csv_datas) < 1):
+		print "No simulation data"
+		return
 	xvals = np.array([float(val) for val in csv_datas.pop(0).split(",")])
 	yvals = []
 	all_datas = []
@@ -1739,14 +1996,11 @@ def disp_graph():
 	margin =int(MA2)
 	if(margin < int(MA1)):
 		margin =int(MA1)
-	if(dp.is_num(TARGET_CODE) and int(TARGET_CODE) < 1000):
-		r = dp.get_price_history()
-		n =len(r.close)
-		r2 = r
-	else:
-		r = dp.get_data_by_day(stock,s_dt,e_dt.year,e_dt.month,e_dt.day)
-		n =len(r.close)
-		r2 = dp.get_data_by_day_num(stock,e_dt,n+margin)
+
+	r = dp.get_data_by_day(stock,s_dt,e_dt.year,e_dt.month,e_dt.day)
+	n =len(r.close)
+	r2 = dp.get_data_by_day_num(stock,e_dt,n+margin)
+
 	#Moving average
 	if(len(r2.close) >= int(MA1)):
 		ma1 = dp.moving_average(r2.close, int(MA1))
@@ -1764,9 +2018,15 @@ def disp_graph():
 	else:
 		ma1 = ma1
 		ma2 = ma2
-	#RSI
-	rsi = dp.relative_strength(r.close)
-
+	#RSI RCI
+	if(RSI_RCI==0):
+		rsi = dp.relative_strength(r.close,RSI_DAY)
+		rsi_rci_upper = RSI_UPPER
+		rsi_rci_lower = RSI_LOWER
+	else:
+		rsi = dp.rci_array(r.close,RCI_DAY)
+		rsi_rci_upper = RCI_UPPER
+		rsi_rci_lower = RCI_LOWER
 
 	plt.rc('axes', grid=True)
 	plt.rc('grid', color='0.75', linestyle='-', linewidth=0.5)
@@ -1787,8 +2047,6 @@ def disp_graph():
 
 
 	if(DONE_SIM):
-		#res_dates = []
-		#res_res = []
 		resource_datas = dp.open_file(LOG_DIR,RESOURCE_LOG)
 		res_datas = []
 		res_vals = []
@@ -1825,15 +2083,19 @@ def disp_graph():
 	N = len(r.close)
 	fillcolor = 'darkgoldenrod'
 	ax1.plot(xdata, rsi, color=fillcolor)
-	ax1.axhline(70, color=fillcolor)
-	ax1.axhline(30, color=fillcolor)
-	ax1.fill_between(xdata, rsi, 70, where=(rsi>=70), facecolor=fillcolor, edgecolor=fillcolor)
-	ax1.fill_between(xdata, rsi, 30, where=(rsi<=30), facecolor=fillcolor, edgecolor=fillcolor)
-	ax1.text(0.6, 0.9, '>70 = overbought', va='top', transform=ax1.transAxes, fontsize=textsize)
-	ax1.text(0.6, 0.1, '<30 = oversold', transform=ax1.transAxes, fontsize=textsize)
-	ax1.set_ylim(0, 100)
-	ax1.set_yticks([30,70])
-	ax1.text(0.025, 0.95, 'RSI (14)', va='top', transform=ax1.transAxes, fontsize=textsize)
+	ax1.axhline(rsi_rci_upper, color=fillcolor)
+	ax1.axhline(rsi_rci_lower, color=fillcolor)
+	ax1.fill_between(xdata, rsi, rsi_rci_upper, where=(rsi>=rsi_rci_upper), facecolor=fillcolor, edgecolor=fillcolor)
+	ax1.fill_between(xdata, rsi, rsi_rci_lower, where=(rsi<=rsi_rci_lower), facecolor=fillcolor, edgecolor=fillcolor)
+	ax1.text(0.6, 0.9, '>' + str(rsi_rci_upper) + ' = overbought', va='top', transform=ax1.transAxes, fontsize=textsize)
+	ax1.text(0.6, 0.1, '<' + str(rsi_rci_lower) + ' = oversold', transform=ax1.transAxes, fontsize=textsize)
+	ax1.set_yticks([rsi_rci_lower,rsi_rci_upper])
+	if(RSI_RCI==0):
+		ax1.set_ylim(0, 100)
+		ax1.text(0.025, 0.95, 'RSI (' + str(RSI_DAY) + ')', va='top', transform=ax1.transAxes, fontsize=textsize)
+	else:
+		ax1.set_ylim(-120, 120)
+		ax1.text(0.025, 0.95, 'RSI (' + str(RCI_DAY) + ')', va='top', transform=ax1.transAxes, fontsize=textsize)
 
 	if(LANG == "jp"):
 		props_jp = font_manager.FontProperties(size=12,fname=FONT_DIR + FONT)
@@ -1917,16 +2179,8 @@ def disp_2stock_graph(stock1,stock2):
 	s_dt = datetime.date(*[int(val) for val in START_DATE.split('-')])
 	e_dt = datetime.date(*[int(val) for val in END_DATE.split('-')])
 
-	if(dp.is_num(stock1) and int(stock1) < 1000):
-		r1 = dp.get_price_history()
-	else:
-		r1 = dp.get_data_by_day(stock1,s_dt,e_dt.year,e_dt.month,e_dt.day)
-
-	if(dp.is_num(stock2) and int(stock2) < 1000):
-		r2 = dp.get_price_history()
-	else:
-		r2 = dp.get_data_by_day(stock2,s_dt,e_dt.year,e_dt.month,e_dt.day)
-
+	r1 = dp.get_data_by_day(stock1,s_dt,e_dt.year,e_dt.month,e_dt.day)
+	r2 = dp.get_data_by_day(stock2,s_dt,e_dt.year,e_dt.month,e_dt.day)
 	#Moving average
 	ma1 = dp.moving_average(r1.close, int(MA1))
 	ma2 = dp.moving_average(r2.close, int(MA1))
