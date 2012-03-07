@@ -23,7 +23,7 @@ DAY_FLAG = False
 BUY_CUNT_LIMIT = 1
 SELL_CUNT_LIMIT = 1
 def run(stock,trade,sim,sdt,edt,w):
-	global TMP_SUM #, DAY_FLAG
+	global TMP_SUM
 	w.progress.Update(0, 'Start simulation')
 	tmp_datas = []
 	TMP_SUM = 0
@@ -66,18 +66,18 @@ def run(stock,trade,sim,sdt,edt,w):
 					trade.margin = ini_margin
 					trade.price_history = []
 					trade.hold_num = 0
-					#sim.log = []
+
 					sim.resource_log = []
 					#print sim.val_id,sim.val_start,i,val_step
 					trade.vals[sim.val_id2] = sim.val_start2+ j * val_step2
-					#print i,val_step ,trade.vals[sim.val_id]
-					#sim.resource_log.append(trade.vals[sim.val_id])
+					
 					sim_loop(stock,trade,sim,sdt,edt,rt,w)
 					#tmp_datas.append(sim.resource_log[-1]) #Last resource
 					if(len(sim.resource_log)):
 						tmp_csv += "," + str(sim.resource_log[-1])
 				csv_data += tmp_csv + "\n"
-				dp.write_file(LOG_DIR,RESOURCE_LOG2,csv_data)
+			dp.write_file(LOG_DIR,RESOURCE_LOG2,csv_data)
+
 
 		else:
 			for i in range(0,int(sim.val_num)):
@@ -114,6 +114,7 @@ def run(stock,trade,sim,sdt,edt,w):
 			csv_data += str(log) + "\n"
 		dp.write_file(LOG_DIR,RESOURCE_LOG,csv_data)
 	#print sim.val_num,sim.val_num2
+
 def sim_loop(stock,trade,sim,sdt,edt,rt,w):
 	global TMP_SUM
 	one_day = 86400
@@ -184,7 +185,7 @@ def sim_loop(stock,trade,sim,sdt,edt,rt,w):
 				trade.buy_fee = trade.agent.get_fee(trade.buy_total_price,trade.buy_type)
 				trade.buy_price = (trade.buy_total_price + trade.buy_fee) / trade.buy_num
 				trade.margin = int(trade.margin) - int(trade.buy_total_price) - int(trade.buy_fee)
-				buy_for_tax = trade.buy_total_price - trade.buy_fee
+				#buy_for_tax = trade.buy_total_price - trade.buy_fee
 				#Debug
 				if(sim.debug):
 					print dt.year,dt.month,dt.day

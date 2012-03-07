@@ -7,8 +7,15 @@ import re
 import locale
 sys.path.append('./lib/')
 import data_process as dp
-
 def get_fee(price,buy_type):
+	#（約定代金×0.09%＋90円）×1.05　［上限3,874円］
+	fee = int((float(price) * 0.09 / 100.0 + 90.0) * 1.05)
+	if(price <= 0):
+		return 0
+	if(fee > 3874):
+		fee = 3874
+	return fee
+def get_fee_old(price,buy_type):
 	fee = 0
 	#SBI
 	if(price <= 0):

@@ -37,19 +37,19 @@ def coeffs(datas,num):
 	return out
 def ma_day(stock,dt,num):
 	n = num + 5
-	r = dp.get_data_by_day_num(stock,dt,n)
-	ma = dp.moving_average(r.close, num)
+	r = get_data_by_day_num(stock,dt,n)
+	ma = moving_average(r.close, num)
 	return ma[-1]
 def rsi_day(stock,dt,num=14):
 	n = num + 5
-	r = dp.get_data_by_day_num(stock,dt,n)
-	rsi = dp.relative_strength(r.close)
+	r = get_data_by_day_num(stock,dt,n)
+	rsi = relative_strength(r.close)
 	return rsi[-1]
 
 def coeff_day(stock,dt,num):
 	n = num + 5
-	r = dp.get_data_by_day_num(stock,dt,n)
-	coeffs,yfit=dp.get_fit_data(range(0, num),r.close[-num-1:-1])
+	r = get_data_by_day_num(stock,dt,n)
+	coeffs,yfit=get_fit_data(range(0, num),r.close[-num-1:-1])
 	return coeffs[0]
 
 def average(datas):
