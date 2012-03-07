@@ -1430,13 +1430,13 @@ class ViewSetUp(wx.Dialog):
 		sizer.Add(self.rci_day, (5, 1), (1, 1), wx.TOP | wx.EXPAND,  5)
 
 		rci_upper_txt = wx.StaticText(panel, -1, lang.RCI_UPPER)
-		sizer.Add(rsi_upper_txt, (5, 2), flag= wx.LEFT | wx.TOP, border=10)
+		sizer.Add(rci_upper_txt, (5, 2), flag= wx.LEFT | wx.TOP, border=10)
 		self.rci_upper = wx.TextCtrl(panel, -1)
 		self.rci_upper.SetValue(str(RCI_UPPER))
 		sizer.Add(self.rci_upper, (5, 3), (1, 1), wx.TOP | wx.EXPAND,  5)
 
 		rci_lower_txt = wx.StaticText(panel, -1, lang.RCI_LOWER)
-		sizer.Add(rsi_lower_txt, (5, 4), flag= wx.LEFT | wx.TOP, border=10)
+		sizer.Add(rci_lower_txt, (5, 4), flag= wx.LEFT | wx.TOP, border=10)
 		self.rci_lower = wx.TextCtrl(panel, -1)
 		self.rci_lower.SetValue(str(RCI_LOWER))
 		sizer.Add(self.rci_lower, (5, 5), (1, 1), wx.TOP | wx.EXPAND,  5)
