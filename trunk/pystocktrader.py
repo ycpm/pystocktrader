@@ -2,27 +2,21 @@
 # coding: UTF-8
 import os
 import sys
-#reload(sys)
-#sys.setdfaultencoding("utf-8")
 import imp
 import wx
 import wx.lib.sheet as sheet
 import numpy as np
 from string import *
 import re
-#from math import *
 import datetime
 import time
-#import locale
 import matplotlib
-#matplotlib.interactive( True )
 matplotlib.use( 'WXAgg' )
 import matplotlib.font_manager as font_manager
 import matplotlib.ticker as mticker
 import matplotlib.dates as mdates
 import matplotlib.mlab as mlab
 import matplotlib.pyplot as plt
-#from pylab import meshgrid
 
 sys.path.append('./lib/')
 import data_process as dp
@@ -87,6 +81,7 @@ SIM_VAL_STEP2 = 1
 SIM_VAL_NUM2 = 0
 DL_CYCLE = 0
 
+#Moving Average
 MA1 = 25
 MA2 = 100
 #RSI RCI
@@ -740,16 +735,17 @@ class myWxPlot(wx.Panel):
 		ax1.set_yticks([self.rsi_rci_lower,self.rsi_rci_upper])
 		if(RSI_RCI==0):	#RSI
 			ax1.set_ylim(0, 100)
-			ax1.text(0.025, 0.95, 'RSI (' + str(RSI_DAY) + ')', va='top', transform=ax1.transAxes, fontsize=textsize)
+			ax1.text(0.025, 0.95, 'RSI (' + str(RSI_DAY) + ')', va='top', transform=ax1.transAxes, fontproperties=props, fontsize=textsize)
 		else:
 			ax1.set_ylim(-200, 200)
-			ax1.text(0.025, 0.95, 'RCI (' + str(RCI_DAY) + ')', va='top', transform=ax1.transAxes, fontsize=textsize)
+			ax1.text(0.025, 0.95, 'RCI (' + str(RCI_DAY) + ')', va='top', transform=ax1.transAxes, fontproperties=props, fontsize=textsize)
 
 		if(LANG == "jp"):
-			props_jp = font_manager.FontProperties(size=12,fname=FONT_DIR + FONT)
-			ax1.set_title('%s daily'%self.stock.name.decode('utf-8'), fontproperties=props_jp)
+			#props_jp = font_manager.FontProperties(size=12,fname=FONT_DIR + FONT)
+			#ax1.set_title('%s daily'%self.stock.name.decode('utf-8'), fontproperties=props_jp)
+			ax1.set_title('%s daily'%self.stock.name.decode('utf-8'), fontproperties=props)
 		else:
-			ax1.set_title('%s daily'%self.stock.id)
+			ax1.set_title('%s daily'%self.stock.id, fontproperties=props)
 
 
 		#print self.r.date
@@ -798,7 +794,7 @@ class myWxPlot(wx.Panel):
 				if(len(self.res_datas[0]) == len(xdata)):
 					ax3.plot(xdata, self.res_datas[0], color='black', lw=2)
 			ax3.text(0.025, 0.95, lang.SIMU_RESULT + " : " + RULE, va='top',
-					transform=ax3.transAxes, fontsize=textsize)
+					transform=ax3.transAxes, fontproperties=props, fontsize=textsize)
 		else:
 			### compute the MACD indicator
 			fillcolor = 'darkslategrey'
@@ -811,7 +807,7 @@ class myWxPlot(wx.Panel):
 			ax3.plot(xdata, ema9, color='blue', lw=1)
 			ax3.fill_between(xdata, macd-ema9, 0, alpha=0.5, facecolor=fillcolor, edgecolor=fillcolor)
 			ax3.text(0.025, 0.95, 'MACD (%d, %d, %d)'%(nfast, nslow, nema), va='top',
-				transform=ax3.transAxes, fontsize=textsize)
+				transform=ax3.transAxes, fontproperties=props, fontsize=textsize)
 		for ax in ax1, ax2, ax2t, ax3:
 			if ax!=ax3:
 				for label in ax.get_xticklabels():
