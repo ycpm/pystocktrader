@@ -63,7 +63,7 @@ Sell if last price > Buy price.
  	r = dp.get_data_by_day_num(stock,dt,data_num) #get stock prices
  	trade.price = r.close[-1] #Set last price
  	sell_rate = float(trade.vals[1]) #Set sell price rate
- 	now_rate = float(r.open[-1]) / float(trade.buy_price) #Set a loss targe
+ 	now_rate = float(r.open[-1]) / float(trade.buy_price) #Set a loss target
  	wish_sell_price = int(trade.buy_price)*sell_rate #Set sell price
  	if(int(r.open[-1]) > wish_sell_price): #Sell the stock if last price is higher than sell price
  		sell_type = 0	#limit order
