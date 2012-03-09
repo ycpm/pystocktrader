@@ -34,8 +34,8 @@ SIM_VAL_NUM2 =30	#number of iteration
 
 
 #FOR view
-MA1 = 15	#Moving avarage
-MA2 = 37	#Moving avarage
+MA1 = 15	#Short cycle of Moving avarage
+MA2 = 37	#long cycle of Moving avarage
 
 #RSI RCI
 RSI_RCI=0	#0:RSI, 1:RCI
