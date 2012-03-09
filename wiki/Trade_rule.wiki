@@ -47,9 +47,9 @@ Sell if last price > Buy price.
  	r = dp.get_data_by_day_num(stock,dt,data_num) #Get price data
  	trade.price = r.close[-1] #set last price
  	last_price = int(r.close[-2]) #Set second last price
- 	last_last_price = int(r.close[-3]) #Set shird last price
- 	buy_rate = float(trade.vals[0]) #Buy price rate
- 	if(int(last_price) < int(last_last_price * buy_rate)): #Buy the stocks if the price is lower than set price
+ 	last_last_price = int(r.close[-3]) #Set third last price
+ 	buy_rate = float(trade.vals[0]) #Set buy price rate
+ 	if(int(last_price) < int(last_last_price * buy_rate)): #Buy the stocks if the second last price is lower than third last price
  		price = int(last_price) * buy_rate #set buy price
  		if(int(r.open[-1]) < price): #Set the buy price if last price is lower than buy price
  			price = int(r.open[-1])
@@ -62,7 +62,7 @@ Sell if last price > Buy price.
  	sell_type = 0
  	r = dp.get_data_by_day_num(stock,dt,data_num) #get stock prices
  	trade.price = r.close[-1] #Set last price
- 	sell_rate = float(trade.vals[1]) #Set sell rate
+ 	sell_rate = float(trade.vals[1]) #Set sell price rate
  	now_rate = float(r.open[-1]) / float(trade.buy_price) #Set a loss targe
  	wish_sell_price = int(trade.buy_price)*sell_rate #Set sell price
  	if(int(r.open[-1]) > wish_sell_price): #Sell the stock if last price is higher than sell price
