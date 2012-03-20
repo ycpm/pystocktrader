@@ -6,8 +6,9 @@ date,market_id,open,high,low,close,volume,adj_close
  * If you have no "volume" data, set "0".
  * If you have no "adj_close" (adjusted close price) data, set adj_close = close.
  * "market_id" is not important. If no data, set 1
- * If you have only one price data, set open = high = low = close = adj_close
-=Example=
+ * If you have one price data only, set open = high = low = close = adj_close
+ * date format: Year-Month-Day
+=Examples=
 {{{
 2005-4-8,4,2000000,2300000,1730000,2290000,2613,4580000
 2005-4-11,4,2010000,2080000,1890000,1890000,1709,3780000
