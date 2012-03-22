@@ -10,16 +10,15 @@ import time
 import locale
 import re
 import numpy as np
+import multiprocessing as mp
 sys.path.append('./rule/')
 import data_process as dp
 import market as mk
-DAY_DATA = "DAY_"
 LOG_DIR = "./log/"
 RESOURCE_LOG = "resource.csv"
 RESOURCE_LOG2 = "resource2.csv"
 SIMU_LOG = "simulate.csv"
 TMP_SUM = 0
-DAY_FLAG = False
 BUY_CUNT_LIMIT = 1
 SELL_CUNT_LIMIT = 1
 def run(stock,trade,sim,sdt,edt,w):
@@ -27,11 +26,6 @@ def run(stock,trade,sim,sdt,edt,w):
 	w.progress.Update(0, 'Start simulation')
 	tmp_datas = []
 	TMP_SUM = 0
-	#if(int(trade.id) < 1000):
-	#if(re.search(DAY_DATA,str(trade.id))):
-	#	DAY_FLAG = True
-	#else:
-	#	DAY_FLAG = False
 
 	rt = dp.get_data_by_day(stock,sdt,edt.year,edt.month,edt.day)
 	if(len(rt.close) < 1):
@@ -60,25 +54,53 @@ def run(stock,trade,sim,sdt,edt,w):
 			csv_data = csv_data.strip(",")
 			csv_data += "\n"
 			for i in range(0,int(sim.val_num)):
-				trade.vals[sim.val_id] = sim.val_start + i * val_step
-				tmp_csv = str(trade.vals[sim.val_id])
-				for j in range(0,int(sim.val_num2)):
-					trade.margin = ini_margin
-					trade.price_history = []
-					trade.hold_num = 0
-
-					sim.resource_log = []
-					#print sim.val_id,sim.val_start,i,val_step
-					trade.vals[sim.val_id2] = sim.val_start2+ j * val_step2
-					
-					sim_loop(stock,trade,sim,sdt,edt,rt,w)
-					#tmp_datas.append(sim.resource_log[-1]) #Last resource
-					if(len(sim.resource_log)):
-						tmp_csv += "," + str(sim.resource_log[-1])
-				csv_data += tmp_csv + "\n"
+				tmp = sim.val_start + i * val_step
+				csv_data += str(tmp) + ","
+			csv_data = csv_data.strip(",")
+			csv_data += "\n"
 			dp.write_file(LOG_DIR,RESOURCE_LOG2,csv_data)
-
-
+			if(sim.mp):
+				for i in range(0,int(sim.val_num)):
+					trade.vals[sim.val_id] = sim.val_start + i * val_step
+					for j in range(0,int(sim.val_num2)):
+						#
+						total_num = int(sim.val_num) * int(sim.val_num2)
+						TMP_SUM += 1
+						pr=int((float(TMP_SUM)/float(total_num )) * 1000.0)
+						if( not pr % 50.0):
+							pr2 = pr/10
+							#print "*********" ,pr/10, "%"
+							w.progress.Update(pr2, 'Progress ...')
+						trade.margin = ini_margin
+						trade.price_history = []
+						trade.hold_num = 0
+						sim.resource_log = []
+						#print sim.val_id,sim.val_start,i,val_step
+						trade.vals[sim.val_id2] = sim.val_start2 + j * val_step2
+						#For multiprocessing
+						p = mp.Process(target=sim_loop,args=(stock,trade,sim,sdt,edt,rt))
+						#jobs.append(p)
+						p.start()
+				p.join()
+			else:
+				for i in range(0,int(sim.val_num)):
+					trade.vals[sim.val_id] = sim.val_start + i * val_step
+					for j in range(0,int(sim.val_num2)):
+						#
+						total_num = int(sim.val_num) * int(sim.val_num2)
+						TMP_SUM += 1
+						pr=int((float(TMP_SUM)/float(total_num )) * 1000.0)
+						if( not pr % 50.0):
+							pr2 = pr/10
+							#print "*********" ,pr/10, "%"
+							w.progress.Update(pr2, 'Progress ...')
+						trade.margin = ini_margin
+						trade.price_history = []
+						trade.hold_num = 0
+						sim.resource_log = []
+						#print sim.val_id,sim.val_start,i,val_step
+						trade.vals[sim.val_id2] = sim.val_start2 + j * val_step2
+						sim_loop(stock,trade,sim,sdt,edt,rt)
 		else:
 			for i in range(0,int(sim.val_num)):
 				trade.margin = ini_margin
@@ -90,7 +112,8 @@ def run(stock,trade,sim,sdt,edt,w):
 				trade.vals[sim.val_id] = sim.val_start + i * val_step
 				#print i,val_step ,trade.vals[sim.val_id]
 				sim.resource_log.append(trade.vals[sim.val_id])
-				sim_loop(stock,trade,sim,sdt,edt,rt,w)
+				#sim_loop(stock,trade,sim,sdt,edt,rt,w)
+				sim_loop(stock,trade,sim,sdt,edt,rt)
 				tmp_datas.append(sim.resource_log)
 			tmp_csv_data = []
 			for tmp in tmp_datas[0]:
@@ -107,26 +130,24 @@ def run(stock,trade,sim,sdt,edt,w):
 	else:
 		#Single Simulation
 		sim.resource_log = []
-		sim_loop(stock,trade,sim,sdt,edt,rt,w)
+		#sim_loop(stock,trade,sim,sdt,edt,rt,w)
+		sim_loop(stock,trade,sim,sdt,edt,rt)
 		#print sim.resource_log,len(sim.resource_log)
 		csv_data = ""
 		for log in sim.resource_log:
 			csv_data += str(log) + "\n"
 		dp.write_file(LOG_DIR,RESOURCE_LOG,csv_data)
 	#print sim.val_num,sim.val_num2
-
-def sim_loop(stock,trade,sim,sdt,edt,rt,w):
+def sim_loop(stock,trade,sim,sdt,edt,rt):
 	global TMP_SUM
-	one_day = 86400
 	#init
 	buy_sell_num = 0
 	trade.do_buy = 0
 	sim_data = ""
 	buy_count = {}
 	sell_count = {}
-	#stock.market[0] = 1
 	trade.market = stock.market[0]
-
+	ret_log = []
 	num = len(rt.close)
 	total_num = int(num)
 	if(int(sim.val_num) > 1):
@@ -136,16 +157,6 @@ def sim_loop(stock,trade,sim,sdt,edt,rt,w):
 
 	stock.datas = []
 	for i in range(0,num):
-		#if(w.progress == wx.PD_CAN_ABORT):
-			#break
-		#print w.progress
-		TMP_SUM += 1
-		pr=int((float(TMP_SUM)/float(total_num )) * 1000.0)
-		if( not pr % 50.0):
-			pr2 = pr/10
-			#print "*********" ,pr/10, "%"
-			w.progress.Update(pr2, 'Progress ...')
-		#date = time.localtime(tmp_time)
 		date_data,dm = str(rt.date[i]).split(' ')
 		if not buy_count.has_key(str(date_data)):
 			buy_count[str(date_data)] = 0
@@ -157,8 +168,6 @@ def sim_loop(stock,trade,sim,sdt,edt,rt,w):
 			stock_data = str(date_data) + "," + str(trade.market) + "," + str(rt.open[i-1]) + "," + str(rt.high[i-1]) + "," + str(rt.low[i-1]) + "," + str(rt.close[i-1]) + "," + str(rt.volume[i-1]) + "," + str(rt.aclose[i-1])
 			stock.datas.append(stock_data)
 		#print date,trade.rule
-		#rt = dp.get_data_by_day(stock,dt)
-
 		today_close = rt.close[i]
 		trade.price = rt.open[i]
 		trade.high = rt.high[i]
@@ -167,10 +176,6 @@ def sim_loop(stock,trade,sim,sdt,edt,rt,w):
 		trade.price_history.append(trade.price)
 		date_str = str(rt.date[i])
 		trade.sell_num = trade.hold_num
-		#if(buy_count[str(date_data)] >= BUY_CUNT_LIMIT):
-		#	print buy_count[str(date_data)], sell_count[str(date_data)]
-		#if(sell_count[str(date_data)] >= SELL_CUNT_LIMIT):
-		#	print buy_count[str(date_data)], sell_count[str(date_data)]
 		if( int(trade.margin)- trade.limit > 0 and trade.do_buy == 0 and buy_count[str(date_data)] < BUY_CUNT_LIMIT):
 			#print "BUY"
 			trade.buy_total_price = 0
@@ -204,7 +209,6 @@ def sim_loop(stock,trade,sim,sdt,edt,rt,w):
 				resource = trade.buy_num * today_close + trade.margin
 				#Log
 				sim.resource_log.append(resource)
-				#tmp_time += one_day
 				continue
 		if(int(trade.hold_num) > 0 and trade.do_sell == 0 and sell_count[str(date_data)] < SELL_CUNT_LIMIT):
 			#print "SELL"
@@ -240,15 +244,12 @@ def sim_loop(stock,trade,sim,sdt,edt,rt,w):
 				sell_count[str(date_data)] += 1
 				resource = trade.margin
 				sim.resource_log.append(resource)
-				#tmp_time += one_day
 				continue
 		resource = trade.margin
 		if(trade.do_buy):
 			resource = trade.hold_num * int(today_close) + trade.margin
 		#Log
 		sim.resource_log.append(resource)
-		#tmp_time += one_day
-		#TIME_SUM += one_day
 	if(trade.do_buy):
 		money = trade.hold_num * int(today_close) + trade.margin
 		print "Last money =", money
@@ -256,7 +257,8 @@ def sim_loop(stock,trade,sim,sdt,edt,rt,w):
 		print "Last money =", trade.margin
 	#
 	dp.write_file(LOG_DIR,SIMU_LOG,sim_data)
-
+	tmp_csv = str(trade.vals[sim.val_id]) + "," + str(trade.vals[sim.val_id2]) + "," + str(sim.resource_log[-1]) + "\n"
+	dp.add_file(LOG_DIR,RESOURCE_LOG2,tmp_csv)
 
 
 def sim_buy(stock,trade,dt,price):

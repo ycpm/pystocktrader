@@ -17,17 +17,14 @@ import matplotlib.ticker as mticker
 import matplotlib.dates as mdates
 import matplotlib.mlab as mlab
 import matplotlib.pyplot as plt
-
 sys.path.append('./lib/')
 import data_process as dp
 import simulator as sim
 import stock_conv as sc
-import get_detail as gd
+#import get_detail as gd
 WINDOW_X = 1000
 WINDOW_Y = 800
-ICON_DIR = "./icons/small/"
 ICON_DIR = "./icons/"
-FONT_DIR = "./font/"
 DATE = 0
 DAY_DATA = "DAY_"
 
@@ -35,7 +32,6 @@ PRJ_DIR = "./project/"
 PRJ_NAME = "TEST"
 PRJ_FILE = ""
 PRJ_EXT = "*.py"
-GRAPH_EXT = "*.png"
 DATA_DIR = "./data/"
 STOCK_DATA_DIR = DATA_DIR
 STOCK_FILE = "stock_detail.csv"
@@ -51,7 +47,7 @@ DATA_SITE = "yahoo_jp"
 LANG_DIR = "lang"
 #LANG = "jp"
 LANG = "en"
-FONT = "ipag.ttf"
+
 USER = ""
 LOGIN_PASSWD = ""
 TRADE_PASSWD = ""
@@ -95,8 +91,8 @@ RCI_LOWER = -90
 #Flag
 DONE_SIM = 0
 
-MARKETS = ["All","Tosho 1","Tosho 2","Tosho Mothers","JASDAQ"]
-DL_STOCK_CODES = "4689,8473,7203,1400,998407,998405"
+#DL_STOCK_CODES = "4689,8473,7203,1400,998407,998405,23337,^DJI,^IXIC,^GSPC,^HSI,000001.SS"
+DL_STOCK_CODES = "4689,8473,7203,1400,998407,998405,2379"
 
 #For search
 SEARCH_MARKET = 0
@@ -125,9 +121,13 @@ WX_FONT_FAMLY = "wxDEFAULT"
 WX_FONT_FACE = "Verdana"
 WX_FONT_STYLE = "wxNORMAL"
 #Font
+GRAPH_FONT_FILE = ""
 GRAPH_FONT_SIZE = 10
 GRAPH_FONT_FAMLY = "sans-serif"
 GRAPH_FONT_STYLE = "normal"
+
+#Multi Processor
+MP = 0
 class user:
 	def __init__(self):
 		self.id = ""
@@ -224,6 +224,7 @@ class simulate:
 		self.val_step2 = 0.0
 		self.val_num2 = 0
 		self.debug = 0
+		self.mp = MP
 		self.log = []
 		self.resource_log = []
 class search:
@@ -257,7 +258,13 @@ class MainFrame(wx.Frame):
 		icon_file = wx.Image('icon.png',wx.BITMAP_TYPE_PNG)
 		icon.CopyFromBitmap(icon_file.ConvertToBitmap())
 		self.SetIcon(icon)
-
+		#font
+		font = wx.Font(10, wx.DEFAULT, wx.NORMAL, wx.BOLD)
+		#wx.Font(integer pointSize, wx.FontFamily family, integer style, integer weight,
+		#			bool underline = false, string faceName = '',
+		#			wx.FontEncoding encoding = wx.FONTENCODING_DEFAULT)
+		#heading = wx.StaticText(self, -1, 'The Central Europe', (130, 15))
+		#heading.SetFont(font)
 		# Setting up the menu.
 		filemenu= wx.Menu()
 		menuOpen = filemenu.Append(wx.ID_OPEN,lang.MENU_OPEN," Open project")
@@ -270,7 +277,7 @@ class MainFrame(wx.Frame):
 		menuDataSetUp = setupmenu.Append(wx.NewId(),lang.MENU_DATASITE," Set up Data Site")
 		menuSetUp = setupmenu.Append(wx.ID_SETUP,lang.MENU_TRADE," Set up Trade")
 		viewmenu = wx.Menu()
-		menuWFontSetUp = viewmenu.Append(wx.NewId(),lang.MENU_WFONT," Set up Window Font")
+		#menuWFontSetUp = viewmenu.Append(wx.NewId(),lang.MENU_WFONT," Set up Window Font")
 		menuGFontSetUp = viewmenu.Append(wx.NewId(),lang.MENU_GFONT," Set up Graph Font")
 		# Creating the menubar.
 		menuBar = wx.MenuBar()
@@ -288,7 +295,7 @@ class MainFrame(wx.Frame):
 		self.Bind(wx.EVT_MENU, self.OnDataSetUp, menuDataSetUp)
 		self.Bind(wx.EVT_MENU, self.OnViewSetUp, menuViewSetUp)
 		self.Bind(wx.EVT_MENU, self.OnSearchSetUp, menuSearchSetUp)
-		self.Bind(wx.EVT_MENU, self.OnWFont, menuWFontSetUp)
+		#self.Bind(wx.EVT_MENU, self.OnWFont, menuWFontSetUp)
 		self.Bind(wx.EVT_MENU, self.OnGFont, menuGFontSetUp)
 		toolbar = self.CreateToolBar()
 		view_set = toolbar.AddLabelTool(wx.NewId(), 'Setup', wx.Bitmap(ICON_DIR + 'SetView.png', wx.BITMAP_TYPE_ANY),wx.NullBitmap, wx.ITEM_NORMAL, "", "")
@@ -502,11 +509,12 @@ class MainFrame(wx.Frame):
 		dl.get_stock_data(stock_ids)
 		wx.MessageBox(lang.DL_DONE, lang.INFO, wx.OK | wx.ICON_INFORMATION)
 	def OnDetailDL(self,e):
+		dl = get_plugin(DATA_SITE_DIR,DATA_SITE)
 		ddl = wx.MessageBox(lang.DL_CONFIRM, lang.CONFIRM, wx.YES_NO | wx.NO_DEFAULT| wx.ICON_QUESTION)
 		if ddl == wx.YES:
 			self.progress = wx.ProgressDialog(lang.DetailDL_TITLE,lang.DetailDL_PRO_MSG, maximum = 100, parent=self, style = wx.PD_CAN_ABORT | wx.PD_AUTO_HIDE | wx.PD_APP_MODAL)
 			self.progress.SetSize((300, 100))
-			gd.get_detail_data(self)
+			dl.get_detail_data(self)
 			self.progress.Update(100, lang.DetailDL_PRO_FINISH)
 			self.progress.Destroy()
 			wx.MessageBox(lang.DL_DONE, lang.INFO, wx.OK | wx.ICON_INFORMATION)
@@ -540,7 +548,7 @@ class MainFrame(wx.Frame):
 			data = dlg.GetFontData()
 			font = data.GetChosenFont()
 			color = data.GetColour()
-			text = 'Face: %s, Famly: %s, Size: %d, Style No: %d, Style: %s, Color: %s' % (font.GetFaceName(),font.GetFamilyString(), font.GetPointSize(), font.GetStyle(), font.GetStyleString(), color.Get())
+			text = 'Face: %s, Famly: %s, Size: %d, Style No: %d, Style: %s, native: %s, native user: %s,' % (font.GetFaceName(),font.GetFamilyString(), font.GetPointSize(), font.GetStyle(), font.GetStyleString(), font.GetNativeFontInfoDesc(),font.GetNativeFontInfoUserDesc())
 			WX_FONT_SIZE = font.GetPointSize()
 			WX_FONT_FAMLY = font.GetFamilyString()
 			WX_FONT_FACE = font.GetFaceName()
@@ -549,45 +557,14 @@ class MainFrame(wx.Frame):
 		dlg.Destroy()
 		wx.MessageBox(text, "Font data", wx.OK | wx.ICON_INFORMATION)
 	def OnGFont(self,e):
-		global GRAPH_FONT_SIZE, GRAPH_FONT_FAMLY, GRAPH_FONT_FACE, GRAPH_FONT_STYLE
-		default_font = wx.Font(10, wx.SWISS , wx.NORMAL, wx.NORMAL, False, "Verdana")
-		data = wx.FontData()
-		if sys.platform == 'win32':
-			data.EnableEffects(True)
-		data.SetAllowSymbols(False)
-		data.SetInitialFont(default_font)
-		data.SetRange(10, 30)
-		dlg = wx.FontDialog(self, data)
-		if dlg.ShowModal() == wx.ID_OK:
-			data = dlg.GetFontData()
-			font = data.GetChosenFont()
-			color = data.GetColour()
-			#text = 'Face: %s, Famly: %s, Size: %d, Style No: %d, Style: %s, Color: %s' % (font.GetFaceName(),font.GetFamilyString(), font.GetPointSize(), font.GetStyle(), font.GetStyleString(), color.Get())
-			GRAPH_FONT_SIZE = int(font.GetPointSize())
-			#GRAPH_FONT_FAMLY = font.GetFamilyString()
-			GRAPH_FONT_FAMLY = font.GetFaceName()
-			#GRAPH_FONT_FACE = font.GetFaceName()
-			#if(GRAPH_FONT_FAMLY ==):
-			GRAPH_FONT_STYLE = font.GetStyle()
-			#wxITALIC,wxNORMAL
-			if(GRAPH_FONT_STYLE == "wxITALIC"):
-				GRAPH_FONT_STYLE = "italic"
-			else:
-				GRAPH_FONT_STYLE = "normal"
-
-			#self.SetStatusText(text)
-		dlg.Destroy()
+		gf = SetGraphFont(None, -1, "Graph Font")
+		gf.ShowModal()
+		gf.Destroy()
 		self.plot.fig.clear()
 		if self.plot.set_data():
 			self.plot.setsize()
 			self.plot.draw()
 			self.plot.fig.canvas.draw()
-		#wx.MessageBox(text, "Font data", wx.OK | wx.ICON_INFORMATION)
-	def OnGFont_test(self,e):
-		gf = SetGraphFont(None, -1, "Graph Font")
-		gf.ShowModal()
-		gf.Destroy()
-
 class myWxPlot(wx.Panel):
 	def __init__( self, parent):
 		from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg
@@ -597,7 +574,7 @@ class myWxPlot(wx.Panel):
 
 		plt.rc('axes', grid=True)
 		plt.rc('grid', color='0.75', linestyle='-', linewidth=0.5)
-
+		#plt.ticklabel_format(useLocale = False)
 		self.fig = plt.Figure( None, facecolor='white')
 
 		#canvas
@@ -622,14 +599,12 @@ class myWxPlot(wx.Panel):
 		if(n < 1):
 			print "Data Error r"
 			return False
-		#margin = 30
 		r2 = dp.get_data_by_day_num(self.stock,e_dt,n+margin)
 		if(len(r2.close)  < 1):
 			print "Data Error r2"
 			return False
 		if(len(r2.close)<=n):
 			r2=self.r
-		#print r2.close
 		#Moving average
 		if(len(r2.close) >= int(MA1)):
 			ma1 = dp.moving_average(r2.close, int(MA1))
@@ -647,6 +622,7 @@ class myWxPlot(wx.Panel):
 		else:
 			self.ma1 = ma1
 			self.ma2 = ma2
+		#RSI RCI
 		if(RSI_RCI==0):
 			self.rsi = dp.relative_strength(self.r.close,RSI_DAY)
 			self.rsi_rci_upper = RSI_UPPER
@@ -657,15 +633,11 @@ class myWxPlot(wx.Panel):
 			self.rsi_rci_lower = RCI_LOWER
 
 		if(DONE_SIM):
-			#self.res_dates = []
 			resource_datas = dp.open_file(LOG_DIR,RESOURCE_LOG)
 			self.res_datas = []
 			self.res_vals = []
 			for i in range(0,SIM_VAL_NUM):				
 				self.res_datas.append([])
-			#print len(self.res_datas[0])
-			#print len(resource_datas)
-			#print resource_datas
 			if(SIM_VAL_NUM > 1):
 				tmp = resource_datas.pop(0)
 				#print tmp
@@ -688,25 +660,26 @@ class myWxPlot(wx.Panel):
 		return True
 	def setsize( self ):
 		size = tuple( self.parent.GetClientSize() )
-		#print size
-		#size = (800,700)
-		#self.SetSize( size )
+
 		self.canvas.SetSize( size )
 		self.fig.set_size_inches( float( size[0] )/self.fig.get_dpi(),
 									 float( size[1] )/self.fig.get_dpi() )
 
 	def draw(self):
-		#print "Draw data",DONE_SIM
-		#print self.r.date
-		#self.r.date = [str(date) for date in self.r.date]	#NG
-		#r.date error
+		#For UnicodeDecodeError
+		reload(sys)
+		sys.setdefaultencoding('utf-8')
+		plt.ticklabel_format(useLocale = False)
 		#print sys.getdefaultencoding()
-		if(DATE):
-			xdata = self.r.date
-			#print self.r.date
-		else:
+		if(re.search(DAY_DATA,str(self.stock.id))):
 			xdata = range(0,len(self.r.close))
-		props = font_manager.FontProperties(family=GRAPH_FONT_FAMLY, style=GRAPH_FONT_STYLE, size=GRAPH_FONT_SIZE)
+		else:
+			xdata = self.r.date
+
+		if(GRAPH_FONT_FILE):
+			props = font_manager.FontProperties(fname=GRAPH_FONT_FILE, style=GRAPH_FONT_STYLE, size=GRAPH_FONT_SIZE)
+		else:
+			props = font_manager.FontProperties(family=GRAPH_FONT_FAMLY, style=GRAPH_FONT_STYLE, size=GRAPH_FONT_SIZE)
 		textsize = 9
 		fillcolor = 'darkgoldenrod'
 		axescolor  = '#f6f6f6'  # the axies background color
@@ -720,12 +693,9 @@ class myWxPlot(wx.Panel):
 		ax2t = ax2.twinx()
 		ax3  = self.fig.add_axes(rect3, axisbg=axescolor, sharex=ax1)
 		N = len(self.r.close)
-		#try:
+		#print sys.getdefaultencoding()
 		ax1.plot(xdata, self.rsi, color=fillcolor)
-		#except UnicodeDecodeError:
-			#print "UnicodeDecodeError"
-			#xdata = range(0,len(self.r.close))
-			#ax1.plot(xdata, self.rsi, color=fillcolor)
+
 		ax1.axhline(self.rsi_rci_upper, color=fillcolor)
 		ax1.axhline(self.rsi_rci_lower, color=fillcolor)
 		ax1.fill_between(xdata, self.rsi, self.rsi_rci_upper, where=(self.rsi>=self.rsi_rci_upper), facecolor=fillcolor, edgecolor=fillcolor)
@@ -741,27 +711,22 @@ class myWxPlot(wx.Panel):
 			ax1.text(0.025, 0.95, 'RCI (' + str(RCI_DAY) + ')', va='top', transform=ax1.transAxes, fontproperties=props, fontsize=textsize)
 
 		if(LANG == "jp"):
-			#props_jp = font_manager.FontProperties(size=12,fname=FONT_DIR + FONT)
-			#ax1.set_title('%s daily'%self.stock.name.decode('utf-8'), fontproperties=props_jp)
 			ax1.set_title('%s daily'%self.stock.name.decode('utf-8'), fontproperties=props)
 		else:
 			ax1.set_title('%s daily'%self.stock.id, fontproperties=props)
-
-
-		#print self.r.date
-		if(DATE):
+		#print sys.getdefaultencoding()
+		if(re.search(DAY_DATA,str(self.stock.id))):
+			ax2.plot(xdata, self.r.close, color='black', lw=2)
+		else:
 			deltas = np.zeros_like(self.r.close)
 			deltas[1:] = np.diff(self.r.close)
 			up = deltas>0
 			ax2.vlines(xdata[up], self.r.low[up], self.r.high[up], color='black', label='_nolegend_')
 			ax2.vlines(xdata[~up], self.r.low[~up],self.r.high[~up], color='black', label='_nolegend_')
-		else:
-			ax2.plot(xdata, self.r.close, color='black', lw=2)
+
 		linema10, = ax2.plot(xdata, self.ma1, color='blue', lw=2, label='MA (' + str(MA1) + ')')
 		linema20, = ax2.plot(xdata, self.ma2, color='red', lw=2, label='MA (' + str(MA2) + ')')
 
-
-		#leg = ax2.legend(loc='center left', shadow=True, fancybox=True, prop=props)
 		leg = ax2.legend(loc='upper left', shadow=True, fancybox=True, prop=props)
 		leg.get_frame().set_alpha(0.5)
 
@@ -779,18 +744,12 @@ class myWxPlot(wx.Panel):
 				return mticker.MaxNLocator.__call__(self, *args, **kwargs)
 		if(DONE_SIM):
 			if(SIM_VAL_NUM > 1):
-				#print "Plot"
-				#print self.res_vals
 				for i in range(0,SIM_VAL_NUM):
-					#print i,len(self.res_datas[i])
-					#print self.res_datas[i]
 					if(len(self.res_datas[i]) == len(xdata)):
 						ax3.plot(xdata, self.res_datas[i], lw=2, label='Val[' + str(i) + '] = ' + str(self.res_vals[i]))
 				leg3 = ax3.legend(loc='upper left', shadow=True, fancybox=True, prop=props)
 				leg3.get_frame().set_alpha(0.5)
 			else:
-				#print "Plot"
-				#print self.res_datas[0]
 				if(len(self.res_datas[0]) == len(xdata)):
 					ax3.plot(xdata, self.res_datas[0], color='black', lw=2)
 			ax3.text(0.025, 0.95, lang.SIMU_RESULT + " : " + RULE, va='top',
@@ -808,6 +767,8 @@ class myWxPlot(wx.Panel):
 			ax3.fill_between(xdata, macd-ema9, 0, alpha=0.5, facecolor=fillcolor, edgecolor=fillcolor)
 			ax3.text(0.025, 0.95, 'MACD (%d, %d, %d)'%(nfast, nslow, nema), va='top',
 				transform=ax3.transAxes, fontproperties=props, fontsize=textsize)
+			#ax3.formatter.use_locale('en_US')
+
 		for ax in ax1, ax2, ax2t, ax3:
 			if ax!=ax3:
 				for label in ax.get_xticklabels():
@@ -816,12 +777,16 @@ class myWxPlot(wx.Panel):
 				for label in ax.get_xticklabels():
 					label.set_rotation(30)
 					label.set_horizontalalignment('right')
+					label.set_fontproperties(props)
 
 			ax.fmt_xdata = mdates.DateFormatter('%Y-%m-%d')
 			#ax.fmt_xdata = mdates.DateFormatter('%Y-%M-%D')
 
+		#ax3.set_xticklabels(xdata,fontproperties=props)
+
 		ax2.yaxis.set_major_locator(MyLocator(5, prune='both'))
 		ax3.yaxis.set_major_locator(MyLocator(5, prune='both'))
+		#print sys.getdefaultencoding()
 class OpenProject(wx.Dialog):
 	def __init__(self, parent, id, title):
 		wx.Dialog.__init__(self, parent, id, title, size=(250, 210))
@@ -1232,11 +1197,18 @@ class SimuSetUp(wx.Dialog):
 		self.val_step2.SetValue(str(SIM_VAL_STEP))
 		sizer.Add(self.val_step2, (10, 1), (1, 1), wx.TOP | wx.EXPAND,  5)
 
+		mp_txt = wx.StaticText(panel, -1, lang.MULTI_PROCESS)
+		sizer.Add(mp_txt, (11, 0), flag= wx.LEFT | wx.TOP, border=10)
+		self.mp = wx.CheckBox(panel, -1, lang.MP_MSG)
+		self.mp.SetValue(MP)
+		sizer.Add(self.mp, (11, 1), (1, 1), wx.TOP | wx.EXPAND,  5)
+
+
 		ok_button = wx.Button(panel, -1, lang.OK, size=(-1, 30))
-		sizer.Add(ok_button, (12, 2), (1, 1),  wx.LEFT, 10)
+		sizer.Add(ok_button, (13, 2), (1, 1),  wx.LEFT, 10)
 
 		close_button = wx.Button(panel, -1, lang.CLOSE, size=(-1, 30))
-		sizer.Add(close_button, (12, 3), (1, 1),  wx.LEFT | wx.BOTTOM | wx.RIGHT, 10)
+		sizer.Add(close_button, (13, 3), (1, 1),  wx.LEFT | wx.BOTTOM | wx.RIGHT, 10)
 		sizer.AddGrowableCol(2)
 
 		panel.SetSizer(sizer)
@@ -1249,7 +1221,7 @@ class SimuSetUp(wx.Dialog):
 		self.Show(True)
 
 	def OnOK(self,e):
-		global AGENT, RULE, SIM_START_MONEY,TARGET_CODE, START_DATE,END_DATE, SIM_VAL_ID, SIM_VAL_NUM, SIM_VAL_START, SIM_VAL_END, SIM_VAL_STEP, SIM_VAL_ID2, SIM_VAL_NUM2, SIM_VAL_START2, SIM_VAL_END2, SIM_VAL_STEP2
+		global AGENT, RULE, SIM_START_MONEY,TARGET_CODE, START_DATE,END_DATE, SIM_VAL_ID, SIM_VAL_NUM, SIM_VAL_START, SIM_VAL_END, SIM_VAL_STEP, SIM_VAL_ID2, SIM_VAL_NUM2, SIM_VAL_START2, SIM_VAL_END2, SIM_VAL_STEP2,MP
 		if(self.code.GetValue()):
 			TARGET_CODE = self.code.GetValue()
 		if(self.resource.GetValue()):
@@ -1280,7 +1252,7 @@ class SimuSetUp(wx.Dialog):
 			SIM_VAL_END2 = float(float(self.end_val2.GetValue()))
 		if(self.val_step2.GetValue()):
 			SIM_VAL_STEP2 = float(float(self.val_step2.GetValue()))
-
+		MP = int(self.mp.IsChecked())
 		st_year = int(self.start_year.GetSelection()) + 2000
 		st_month = int(self.start_month.GetSelection()) + 1
 		st_day = int(self.start_day.GetSelection()) + 1
@@ -1733,6 +1705,9 @@ class StockSheet(sheet.CSheet):
 		self.loadCells()
 
 	def loadCells(self):
+		#For UnicodeDecodeError
+		reload(sys)
+		sys.setdefaultencoding('utf-8')
 		ss = search()
 		search_stock(ss)
 		self.SetNumberRows(len(ss.result))
@@ -1754,7 +1729,7 @@ class StockSheet(sheet.CSheet):
 						tmp.append(sc.num2market[int(m)].decode('utf8'))
 					value = ",".join(tmp)
 				else:
-					value = str(value)
+					value = str(value).decode('utf8')
 				#print value
 				#print sys.getdefaultencoding()
 				#self.SetCellValue(row, col, str(value))
@@ -1780,68 +1755,66 @@ class Stock_data(wx.Dialog):
 		self.Close()
 class SetGraphFont(wx.Dialog):
 	def __init__(self, parent, id, title):
-		wx.Dialog.__init__(self, parent, id, title, size=(250, 210))
-		self.dirname=''
-		p=font_manager.FontProperties()
-		fonts =p.get_family()
+		wx.Dialog.__init__(self, parent, id, title, size=(800, 500))
+		if os.name == 'posix':
+			font_list = font_manager.findSystemFonts()
+		elif os.name == 'nt':
+			font_list = font_manager.win32InstalledFonts()
+		elif os.name == 'mac':
+			font_list = font_manager.OSXInstalledFonts()
+		self.font_name={}
+		for font_file in font_list:
+			#print font_file
+			font=font_manager.ft2font.FT2Font(str(font_file))
+			font_info = font_manager.ttfFontProperty(font)
+			#print font_info.name
+			fontname = font_info.name
+			#filename = os.path.basename(font_file)
+			#fontname = filename.replace(".ttf","")
+			self.font_name[fontname] = font_file
+
+		self.fonts =self.font_name.keys()
 		font_size = ['10', '11', '12', '14', '16']
+
 		panel = wx.Panel(self, -1)
 		sizer = wx.GridBagSizer(0, 0)
 
-		font_txt = wx.StaticText(panel, -1, lang.PROJECT_FILE)
+		font_txt = wx.StaticText(panel, -1, "Font : ")
 		sizer.Add(font_txt, (0, 0), flag= wx.LEFT | wx.TOP, border=10)
 
-		self.font = wx.ComboBox(self, -1, value = 'Times', choices=fonts, size=(100, -1), style=wx.CB_DROPDOWN)
-		sizer.Add(self.font, (0, 1), (1, 3), wx.TOP | wx.EXPAND, 5)
+		self.font = wx.ComboBox(panel, -1, pos=(50, 170), size=(150, -1), choices=self.fonts, 
+					style=wx.CB_READONLY)
+		sizer.Add(self.font, (0, 2), (1, 3), wx.TOP | wx.EXPAND, 5)
 
-		#prj_button = wx.Button(panel, -1, lang.BROWSE, size=(-1, 30))
-		#sizer.Add(prj_button, (0, 4), (1, 1), wx.TOP | wx.LEFT | wx.RIGHT , 5)
+		ok_button = wx.Button(panel, -1, lang.OK, size=(-1, 30))
+		sizer.Add(ok_button, (2, 3), (1, 1),  wx.LEFT, 10)
 
+		close_button = wx.Button(panel, -1, lang.CLOSE, size=(-1, 30))
+		sizer.Add(close_button, (2, 4), (1, 1),  wx.LEFT | wx.BOTTOM | wx.RIGHT, 10)
 
-		#prj_name_txt = wx.StaticText(panel, -1, lang.PROJECT_NAME)
-		#sizer.Add(prj_name_txt, (1, 0), flag= wx.LEFT | wx.TOP, border=10)
-
-		#self.prj_name = wx.TextCtrl(panel, -1)
-		#self.prj_name.SetValue(PRJ_NAME)
-		#sizer.Add(self.prj_name, (1, 1), (1, 3), wx.TOP | wx.EXPAND, 5)
-
-		button5 = wx.Button(panel, -1, lang.OK, size=(-1, 30))
-		sizer.Add(button5, (2, 3), (1, 1),  wx.LEFT, 10)
-
-		button6 = wx.Button(panel, -1, lang.CLOSE, size=(-1, 30))
-		sizer.Add(button6, (2, 4), (1, 1),  wx.LEFT | wx.BOTTOM | wx.RIGHT, 10)
-
-		sizer.AddGrowableCol(2)
+		#sizer.AddGrowableCol(2)
 
 		panel.SetSizer(sizer)
 		sizer.Fit(self)
 		# Events.
 
-		self.Bind(wx.EVT_BUTTON, self.OnOK, button5)
-		self.Bind(wx.EVT_BUTTON, self.OnClose, button6)	
-		#self.Bind(wx.EVT_BUTTON, self.OnSavePrj, prj_button)
+		self.Bind(wx.EVT_BUTTON, self.OnOK, ok_button)
+		self.Bind(wx.EVT_BUTTON, self.OnClose, close_button)
 		self.Centre()
 		self.Show(True)
 	def OnOK(self,e):
-		global PRJ_DIR,PRJ_FILE,PRJ_NAME
-		PRJ_DIR = self.dirname
-		PRJ_FILE = self.filename
-		PRJ_NAME = self.prj_name.GetValue()
-		save_prj()
+		global GRAPH_FONT_SIZE, GRAPH_FONT_FAMLY, GRAPH_FONT_FACE, GRAPH_FONT_STYLE, GRAPH_FONT_FILE
+		if(self.font.GetSelection() >= 0):
+			f_num = int(self.font.GetSelection())
+			fontname = self.fonts[f_num]
+			GRAPH_FONT_FILE = self.font_name[fontname]
 		self.Close(True)  # Close the frame.
 	def OnClose(self,e):
 		self.Close(True)  # Close the frame.
-	def OnSavePrj(self,e):
-		""" Open a file"""
-		self.dirname = PRJ_DIR
-		dlg = wx.FileDialog(self, lang.SELECT_PROJ, self.dirname, "", PRJ_EXT, wx.SAVE)
-		if dlg.ShowModal() == wx.ID_OK:
-			self.filename = dlg.GetFilename()
-			self.dirname = dlg.GetDirectory()
-			self.prj_val.SetValue(os.path.join(self.dirname, self.filename))
-		dlg.Destroy()
+
 def main():
 	global lang
+	#read_ini()
 	lang = get_plugin(LANG_DIR, LANG)
 	app = wx.App()
 	MainFrame(None, -1, 'pyStockTrader')
@@ -1849,7 +1822,7 @@ def main():
 def save_prj():
 	config_data ='PRJ_NAME = "' + str(PRJ_NAME) + "\"\n"
 	config_data += "BORDER_MONEY = " + str(BORDER_MONEY) + "\n"
-	config_data += "TARGET_CODE = " + str(TARGET_CODE) + "\n"
+	config_data += 'TARGET_CODE = "' + str(TARGET_CODE) + "\"\n"
 	config_data += "TARGET_MARKET = " + str(TARGET_MARKET) + "\n"
 	config_data += "TARGET_MAX = " + str(TARGET_MAX) + "\n"
 	config_data += 'USER = "' + str(USER) + "\"\n"
@@ -1877,13 +1850,60 @@ def save_prj():
 	config_data += "MA1 = " + str(MA1) + "\n"
 	config_data += "MA2 = " + str(MA2) + "\n"
 	config_data += "DL_STOCK_CODES = " + str(DL_STOCK_CODES) + "\n"
-	config_data += 'DL_CYCLE = ' + str(DL_CYCLE) + "\n"
-	config_data += 'FONT = "' + str(FONT) + "\"\n"
-	
+	#config_data += 'DL_CYCLE = ' + str(DL_CYCLE) + "\n"
+	#config_data += 'FONT = "' + str(FONT) + "\"\n"
+
+	#RSI RCI
+	config_data += "RSI_RCI = " + str(RSI_RCI) + "\n"
+	config_data += "RSI_DAY = " + str(RSI_DAY) + "\n"
+	config_data += "RCI_DAY = " + str(RCI_DAY) + "\n"
+	config_data += "RSI_UPPER = " + str(RSI_UPPER) + "\n"
+	config_data += "RSI_LOWER = " + str(RSI_LOWER) + "\n"
+	config_data += "RCI_UPPER = " + str(RCI_UPPER) + "\n"
+	config_data += "RCI_LOWER = " + str(RCI_LOWER) + "\n"
+
+	#For search
+	config_data += "SEARCH_MARKET = " + str(SEARCH_MARKET) + "\n"
+	config_data += "MAX_TOTAL_ASSET = " + str(MAX_TOTAL_ASSET) + "\n"
+	config_data += "MIN_TOTAL_ASSET = " + str(MIN_TOTAL_ASSET) + "\n"
+	config_data += "MAX_NET_PROFIT = " + str(MAX_NET_PROFIT) + "\n"
+	config_data += "MIN_NET_PROFIT = " + str(MIN_NET_PROFIT) + "\n"
+	config_data += "MAX_EQUITY_RATIO = " + str(MAX_EQUITY_RATIO) + "\n"
+	config_data += "MIN_EQUITY_RATIO = " + str(MIN_EQUITY_RATIO) + "\n"
+	config_data += "MAX_PBR  = " + str(MAX_PBR) + "\n"
+	config_data += "MIN_PBR = " + str(MIN_PBR) + "\n"
+	config_data += "MAX_PER = " + str(MAX_PER) + "\n"
+	config_data += "MIN_PER = " + str(MIN_PER) + "\n"
+	config_data += "MAX_EPS = " + str(MAX_EPS) + "\n"
+	config_data += "MIN_EPS = " + str(MIN_EPS) + "\n"
+	config_data += "MAX_BPS = " + str(MAX_BPS) + "\n"
+	config_data += "MIN_BPS = " + str(MIN_BPS) + "\n"
+	config_data += "MAX_ROA = " + str(MAX_ROA) + "\n"
+	config_data += "MIN_ROA = " + str(MIN_ROA) + "\n"
+	config_data += "MAX_ROE = " + str(MAX_ROE) + "\n"
+	config_data += "MIN_ROE = " + str(MIN_ROE) + "\n"
+
+	#wx FONT
+	config_data += "WX_FONT_SIZE = " + str(WX_FONT_SIZE) + "\n"
+	config_data += 'WX_FONT_FAMLY = "' + str(WX_FONT_FAMLY) + "\"\n"
+	config_data += 'WX_FONT_FACE = "' + str(WX_FONT_FACE) + "\"\n"
+	config_data += 'WX_FONT_STYLE = "' + str(WX_FONT_STYLE) + "\"\n"
+	#Graph Font
+	config_data += 'GRAPH_FONT_FILE = "' + str(GRAPH_FONT_FILE) + "\"\n"
+	config_data += "GRAPH_FONT_SIZE = " + str(GRAPH_FONT_SIZE) + "\n"
+	config_data += 'GRAPH_FONT_FAMLY = "' + str(GRAPH_FONT_FAMLY) + "\"\n"
+	config_data += 'GRAPH_FONT_STYLE = "' + str(GRAPH_FONT_STYLE) + "\"\n"
+	#Multi processor
+	config_data += "MP = " + str(MP) + "\n"
+
 	dp.write_file(PRJ_DIR,PRJ_FILE,config_data)
+
 def read_prj():
 	global BORDER_MONEY,TARGET_CODE, TARGET_MARKET,TARGET_MAX, USER, LOGIN_PASSWD, TRADE_PASSWD,AGENT, RULE, SIM_START_MONEY, START_DATE, END_DATE, DATA_SITE, LANG, VALS, SIM_VAL_ID, SIM_VAL_START, SIM_VAL_END, SIM_VAL_STEP, SIM_VAL_NUM, SIM_VAL_ID2, SIM_VAL_START2, SIM_VAL_END2, SIM_VAL_STEP2, SIM_VAL_NUM2, DL_CYCLE, MA1, MA2, FONT, PRJ_NAME,DL_STOCK_CODES
 	global RSI_RCI, RSI_DAY, RSI_UPPER, RSI_LOWER, RCI_DAY, RCI_UPPER, RCI_LOWER
+	global SEARCH_MARKET, MAX_TOTAL_ASSET, MIN_TOTAL_ASSET, MAX_NET_PROFIT, MIN_NET_PROFIT, MAX_EQUITY_RATIO, MIN_EQUITY_RATIO, MAX_PBR, MIN_PBR, MAX_PER, MIN_PER, MAX_EPS, MIN_EPS, MAX_BPS, MIN_BPS, MAX_ROA, MIN_ROA, MAX_ROE, MIN_ROE
+	global WX_FONT_SIZE, WX_FONT_FAMLY, WX_FONT_FACE, WX_FONT_STYLE, GRAPH_FONT_FILE, GRAPH_FONT_SIZE, GRAPH_FONT_FAMLY, GRAPH_FONT_STYLE
+	global MP
 	if(PRJ_FILE):
 		ini = get_plugin(PRJ_DIR,PRJ_FILE)
 	else:
@@ -1913,10 +1933,10 @@ def read_prj():
 	SIM_VAL_END2 = float(ini.SIM_VAL_END2)
 	SIM_VAL_STEP2 = float(ini.SIM_VAL_STEP2)
 	SIM_VAL_NUM2 = int(ini.SIM_VAL_NUM2)
-	DL_CYCLE = int(ini.DL_CYCLE)
+	#DL_CYCLE = int(ini.DL_CYCLE)
 	MA1 = int(ini.MA1)
 	MA2 = int(ini.MA2)
-	FONT = str(ini.FONT)
+	#FONT = str(ini.FONT)
 	PRJ_NAME = str(ini.PRJ_NAME)
 	DL_STOCK_CODES = str(ini.DL_STOCK_CODES)
 
@@ -1924,60 +1944,192 @@ def read_prj():
 	try:
 		RSI_RCI = int(ini.RSI_RCI)
 	except AttributeError:
-		print "No RSI_RCI data"
+		print "No RSI_RCI data in config file. Use default value"
 	try:
 		RSI_DAY = int(ini.RSI_DAY)
 	except AttributeError:
-		print "No RSI_DAY data"
+		print "No RSI_DAY data in config file. Use default value"
 	try:
 		RSI_UPPER = int(ini.RSI_UPPER)
 	except AttributeError:
-		print "No RSI_UPPER data"
+		print "No RSI_UPPER data in config file. Use default value"
 	try:
 		RSI_LOWER = int(ini.RSI_LOWER)
 	except AttributeError:
-		print "No RSI_LOWER data"
+		print "No RSI_LOWER data in config file. Use default value"
 
 	#RCI
 	try:
 		RCI_DAY = int(ini.RCI_DAY)
 	except AttributeError:
-		print "No RCI_DAY data"
+		print "No RCI_DAY data in config file. Use default value"
 	try:
 		RCI_UPPER = int(ini.RCI_UPPER)
 	except AttributeError:
-		print "No RCI_UPPER data"
+		print "No RCI_UPPER data in config file. Use default value"
 	try:
 		RCI_LOWER = int(ini.RCI_LOWER)
 	except AttributeError:
-		print "No RCI_LOWER data"
+		print "No RCI_LOWER data in config file. Use default value"
 
+	#For search
+	try:
+		SEARCH_MARKET = int(ini.SEARCH_MARKET)
+	except AttributeError:
+		print "No SEARCH_MARKET data in config file. Use default value"
+	try:
+		MAX_TOTAL_ASSET = float(ini.MAX_TOTAL_ASSET)
+	except AttributeError:
+		print "No MAX_TOTAL_ASSET data in config file. Use default value"
+	try:
+		MIN_TOTAL_ASSET = float(ini.MIN_TOTAL_ASSET)
+	except AttributeError:
+		print "No MIN_TOTAL_ASSET data in config file. Use default value"
+	try:
+		MAX_NET_PROFIT = float(ini.MAX_NET_PROFIT)
+	except AttributeError:
+		print "No MAX_NET_PROFIT data in config file. Use default value"
+	try:
+		MIN_NET_PROFIT = float(ini.MIN_NET_PROFIT)
+	except AttributeError:
+		print "No MIN_NET_PROFIT data in config file. Use default value"
+	try:
+		MAX_EQUITY_RATIO = float(ini.MAX_EQUITY_RATIO)
+	except AttributeError:
+		print "No MAX_EQUITY_RATIO data in config file. Use default value"
+	try:
+		MIN_EQUITY_RATIO = float(ini.MIN_EQUITY_RATIO)
+	except AttributeError:
+		print "No MIN_EQUITY_RATIO data in config file. Use default value"
+	try:
+		MAX_PBR = float(ini.MAX_PBR)
+	except AttributeError:
+		print "No MAX_PBR data in config file. Use default value"
+	try:
+		MIN_PBR = float(ini.MIN_PBR)
+	except AttributeError:
+		print "No MIN_PBR data in config file. Use default value"
+	try:
+		MAX_PER  = float(ini.MAX_PER)
+	except AttributeError:
+		print "No MAX_PER data in config file. Use default value"
+	try:
+		MIN_PER  = float(ini.MIN_PER)
+	except AttributeError:
+		print "No MIN_PER data in config file. Use default value"
+	try:
+		MAX_EPS = float(ini.MAX_EPS)
+	except AttributeError:
+		print "No MAX_EPS data in config file. Use default value"
+	try:
+		MIN_EPS = float(ini.MIN_EPS)
+	except AttributeError:
+		print "No MIN_EPS data in config file. Use default value"
+	try:
+		MAX_BPS = float(ini.MAX_BPS)
+	except AttributeError:
+		print "No MAX_BPS data in config file. Use default value"
+	try:
+		MIN_BPS = float(ini.MIN_BPS)
+	except AttributeError:
+		print "No MIN_BPS data in config file. Use default value"
+	try:
+		MAX_ROA = float(ini.MAX_ROA)
+	except AttributeError:
+		print "No MAX_ROA data in config file. Use default value"
+	try:
+		MIN_ROA = float(ini.MIN_ROA)
+	except AttributeError:
+		print "No MIN_ROA data in config file. Use default value"
+	try:
+		MAX_ROE = float(ini.MAX_ROE)
+	except AttributeError:
+		print "No MAX_ROE data in config file. Use default value"
+	try:
+		MIN_ROE = float(ini.MIN_ROE)
+	except AttributeError:
+		print "No MIN_ROE data in config file. Use default value"
+
+	#wx FONT
+	try:
+		WX_FONT_SIZE = int(ini.WX_FONT_SIZE)
+	except AttributeError:
+		print "No WX_FONT_SIZE data in config file. Use default value"
+	try:
+		WX_FONT_FAMLY = str(ini.WX_FONT_FAMLY)
+	except AttributeError:
+		print "No WX_FONT_FAMLY data in config file. Use default value"
+	try:
+		WX_FONT_FACE = str(ini.WX_FONT_FACE)
+	except AttributeError:
+		print "No WX_FONT_FACE data in config file. Use default value"
+	try:
+		WX_FONT_STYLE = str(ini.WX_FONT_STYLE)
+	except AttributeError:
+		print "No WX_FONT_STYLE data in config file. Use default value"
+
+	#Graph Font
+	try:
+		GRAPH_FONT_FILE = str(ini.GRAPH_FONT_FILE)
+	except AttributeError:
+		print "No GRAPH_FONT_FILE data in config file. Use default value"
+	try:
+		GRAPH_FONT_SIZE = int(ini.GRAPH_FONT_SIZE)
+	except AttributeError:
+		print "No GRAPH_FONT_SIZE data in config file. Use default value"
+	try:
+		GRAPH_FONT_FAMLY = str(ini.GRAPH_FONT_FAMLY)
+	except AttributeError:
+		print "No GRAPH_FONT_FAMLY data in config file. Use default value"
+	try:
+		GRAPH_FONT_STYLE = str(ini.GRAPH_FONT_STYLE)
+	except AttributeError:
+		print "No GRAPH_FONT_STYLE data in config file. Use default value"
+	#Multi Processor
+	try:
+		MP = int(ini.MP)
+	except AttributeError:
+		print "No MP data in config file. Use default value"
 def disp_2d():
-	csv_datas = dp.open_file(LOG_DIR, RESOURCE_LOG2)
-	if(len(csv_datas) < 1):
+	csv_data = dp.open_file(LOG_DIR, RESOURCE_LOG2)
+	if(len(csv_data) < 1):
 		print "No simulation data"
 		return
-	xvals = np.array([float(val) for val in csv_datas.pop(0).split(",")])
-	yvals = []
-	all_datas = []
-	for data in csv_datas:
+	xvals = np.array([float(val) for val in csv_data.pop(0).split(",")])
+	yvals = np.array([float(val) for val in csv_data.pop(0).split(",")])
+	idx = 0
+	x_idx = {}
+	for x in xvals:
+		x_idx[str(x)] = idx
+		idx += 1
+	idx = 0
+	y_idx = {}
+	for y in yvals:
+		y_idx[str(y)] = idx
+		idx += 1
+
+	y_list = np.zeros((len(yvals), len(xvals)))
+	for data in csv_data:
 		if not data:
 			continue
-		datas = data.split(",")
+		val = data.split(",")
 
-		yval = datas.pop(0)		
-		datas = np.array([float(val) / SIM_START_MONEY for val in datas])	
-		yvals.append(float(yval))
-		all_datas.append(datas)
-	yvals = np.array(yvals)
-	all_datas = np.array(all_datas)
+		yval = val[0]
+		xval = val[1]
+		try:
+			y_list[y_idx[yval]][x_idx[xval]] = float(val[2])
+		except IndexError:
+			y_list[y_idx[yval]] = range(0,len(xvals))
+			y_list[y_idx[yval]][x_idx[xval]] = float(val[2])
+
+	all_data = np.array(y_list)
 	X,Y = np.meshgrid(xvals, yvals)
 	plt.title(lang.SIMU_RESULT)
 	plt.subplot(111)
-	plt.pcolor(X, Y, all_datas)
+	plt.pcolor(X, Y, all_data)
 	#plt.imshow(all_datas)
-	plt.xlabel('Val 2')
-	plt.ylabel('Val 1')
+	plt.xlabel('Vals ID = ' + str(SIM_VAL_ID2))
+	plt.ylabel('Vals ID = ' + str(SIM_VAL_ID))
 	plt.subplots_adjust(bottom=0.1, right=0.8, top=0.9)
 	cax = plt.axes([0.85, 0.1, 0.075, 0.8])
 	plt.colorbar(cax=cax)
@@ -2035,7 +2187,11 @@ def disp_graph():
 	fig = plt.figure(facecolor='white')
 	axescolor  = '#f6f6f6'  # the axies background color
 
-	props = font_manager.FontProperties(size=10)
+	#props = font_manager.FontProperties(size=10)
+	if(GRAPH_FONT_FILE):
+		props = font_manager.FontProperties(fname=GRAPH_FONT_FILE, style=GRAPH_FONT_STYLE, size=GRAPH_FONT_SIZE)
+	else:
+		props = font_manager.FontProperties(family=GRAPH_FONT_FAMLY, style=GRAPH_FONT_STYLE, size=GRAPH_FONT_SIZE)
 	ax1 = fig.add_axes(rect1, axisbg=axescolor)  #left, bottom, width, height
 	ax2 = fig.add_axes(rect2, axisbg=axescolor, sharex=ax1)
 	ax2t = ax2.twinx()
@@ -2071,11 +2227,10 @@ def disp_graph():
 		#print res_datas[1]
 
 
-	if(DATE):
-		xdata = r.date
-	else:
+	if(re.search(DAY_DATA,str(stock.id))):
 		xdata = range(0,len(r.close))
-
+	else:
+		xdata = r.date
 	N = len(r.close)
 	fillcolor = 'darkgoldenrod'
 	ax1.plot(xdata, rsi, color=fillcolor)
@@ -2088,25 +2243,24 @@ def disp_graph():
 	ax1.set_yticks([rsi_rci_lower,rsi_rci_upper])
 	if(RSI_RCI==0):
 		ax1.set_ylim(0, 100)
-		ax1.text(0.025, 0.95, 'RSI (' + str(RSI_DAY) + ')', va='top', transform=ax1.transAxes, fontsize=textsize)
+		ax1.text(0.025, 0.95, 'RSI (' + str(RSI_DAY) + ')', va='top', transform=ax1.transAxes, fontproperties=props, fontsize=textsize)
 	else:
 		ax1.set_ylim(-120, 120)
-		ax1.text(0.025, 0.95, 'RSI (' + str(RCI_DAY) + ')', va='top', transform=ax1.transAxes, fontsize=textsize)
+		ax1.text(0.025, 0.95, 'RSI (' + str(RCI_DAY) + ')', va='top', transform=ax1.transAxes, fontproperties=props, fontsize=textsize)
 
 	if(LANG == "jp"):
-		props_jp = font_manager.FontProperties(size=12,fname=FONT_DIR + FONT)
-		ax1.set_title('%s daily'%stock.name.decode('utf-8'), fontproperties=props_jp)
+		ax1.set_title('%s daily'%stock.name.decode('utf-8'), fontproperties=props)
 	else:
-		ax1.set_title('%s daily'%stock.id)
+		ax1.set_title('%s daily'%stock.id, fontproperties=props)
 
-	if(DATE):
+	if(re.search(DAY_DATA,str(stock.id))):
+		ax2.plot(xdata, r.close, color='black', lw=2)
+	else:
 		deltas = np.zeros_like(r.close)
 		deltas[1:] = np.diff(r.close)
 		up = deltas>0
 		ax2.vlines(xdata[up], r.low[up], r.high[up], color='black', label='_nolegend_')
 		ax2.vlines(xdata[~up], r.low[~up],r.high[~up], color='black', label='_nolegend_')
-	else:
-		ax2.plot(xdata, r.close, color='black', lw=2)
 
 	linema10, = ax2.plot(xdata, ma1, color='blue', lw=2, label='MA (' + str(MA1) + ')')
 	linema20, = ax2.plot(xdata, ma2, color='red', lw=2, label='MA (' + str(MA2) + ')')
@@ -2141,7 +2295,7 @@ def disp_graph():
 			if(len(res_datas[0]) == len(xdata)):
 				ax3.plot(xdata,res_datas[0], color='black', lw=2)
 		ax3.text(0.025, 0.95, lang.SIMU_RESULT + ":" + RULE, va='top',
-				transform=ax3.transAxes, fontsize=textsize)
+				transform=ax3.transAxes, fontproperties=props, fontsize=textsize)
 	else:
 		### compute the MACD indicator
 		fillcolor = 'darkslategrey'
@@ -2163,6 +2317,7 @@ def disp_graph():
 			for label in ax.get_xticklabels():
 				label.set_rotation(30)
 				label.set_horizontalalignment('right')
+				label.set_fontproperties(props)
 
 		ax.fmt_xdata = mdates.DateFormatter('%Y-%m-%d')
 
@@ -2196,7 +2351,11 @@ def disp_2stock_graph(stock1,stock2):
 
 	fig = plt.figure(facecolor='white')
 	axescolor  = '#f6f6f6'  # the axies background color
-	props = font_manager.FontProperties(size=10)
+	#props = font_manager.FontProperties(size=10)
+	if(GRAPH_FONT_FILE):
+		props = font_manager.FontProperties(fname=GRAPH_FONT_FILE, style=GRAPH_FONT_STYLE, size=GRAPH_FONT_SIZE)
+	else:
+		props = font_manager.FontProperties(family=GRAPH_FONT_FAMLY, style=GRAPH_FONT_STYLE, size=GRAPH_FONT_SIZE)
 	fillcolor = 'darkgoldenrod'
 	ax1 = fig.add_axes(rect1, axisbg=axescolor)  #left, bottom, width, height
 	ax2 = fig.add_axes(rect2, axisbg=axescolor, sharex=ax1)
@@ -2205,11 +2364,14 @@ def disp_2stock_graph(stock1,stock2):
 	ax3t = ax3.twinx()
 	#print self.r.date
 	#r.date error
-	if(DATE):
-		xdata = r.date
+	#if(DATE):
+	#	xdata = r.date
+	#else:
+	#	xdata = range(0,len(r1.close))
+	if(re.search(DAY_DATA,str(stock.id))):
+		xdata = range(0,len(r.close))
 	else:
-		xdata = range(0,len(r1.close))
-
+		xdata = r.date
 	ax1.plot(xdata, rsi1, color='blue')
 	ax1.plot(xdata, rsi2, color='red')
 	ax1.axhline(70, color=fillcolor)
@@ -2221,11 +2383,14 @@ def disp_2stock_graph(stock1,stock2):
 	ax1.text(0.025, 0.95, 'RSI (14)', va='top', transform=ax1.transAxes, fontsize=textsize)
 
 	if(LANG == "jp"):
-		props_jp = font_manager.FontProperties(size=12,fname=FONT_DIR + FONT)
-		ax1.set_title(str(stock1.name).decode('utf-8') + " VS " + str(stock2.name).decode('utf-8'), fontproperties=props_jp)
+		ax1.set_title('%s daily'%stock.name.decode('utf-8'), fontproperties=props)
 	else:
-		ax1.set_title(str(stock1.id) + " VS " + str(stock2.id))
-	if(DATE):
+		ax1.set_title('%s daily'%stock.id, fontproperties=props)
+
+	if(re.search(DAY_DATA,str(stock.id))):
+		ax2.plot(xdata, r1.close, color='blue', lw=2, label=str(stock1.id))
+		ax2t.plot(xdata, r2.close, color='red', lw=2, label=str(stock2.id))
+	else:
 		deltas = np.zeros_like(r1.close)
 		deltas[1:] = np.diff(r1.close)
 		up = deltas>0
@@ -2237,11 +2402,6 @@ def disp_2stock_graph(stock1,stock2):
 		up = deltas>0
 		ax2.vlines(xdata[up], r2.low[up], r2.high[up], color='red', label='_nolegend_')
 		ax2.vlines(xdata[~up], r2.low[~up],r2.high[~up], color='red', label='_nolegend_')
-	else:
-		ax2.plot(xdata, r1.close, color='blue', lw=2, label=str(stock1.id))
-		ax2t.plot(xdata, r2.close, color='red', lw=2, label=str(stock2.id))
-	#print r.date
-
 
 	leg1 = ax2.legend(loc='upper left', shadow=True, fancybox=True, prop=props)
 	leg1.get_frame().set_alpha(0.5)
@@ -2267,7 +2427,7 @@ def disp_2stock_graph(stock1,stock2):
 			for label in ax.get_xticklabels():
 				label.set_rotation(30)
 				label.set_horizontalalignment('right')
-
+				label.set_fontproperties(props)
 		ax.fmt_xdata = mdates.DateFormatter('%Y-%m-%d')
 
 	ax2.yaxis.set_major_locator(MyLocator(5, prune='both'))
@@ -2328,7 +2488,7 @@ def search_stock(search):
 		#print data
 		datail_data = data.split(',')
 		#print "detail =",len(datail_data)
-		search.id = int(datail_data[0])	#ID
+		search.id = datail_data[0]	#ID
 		search.name = datail_data[1]	#企業名
 		search.cate = datail_data[2]	#業種
 		if(datail_data[3].find(" ")):	#市場
@@ -2344,14 +2504,22 @@ def search_stock(search):
 		search.unit = int(datail_data[10])	#単元株
 		search.compliment = int(datail_data[11])	#株式優待
 		if(len(datail_data) > 12):
-			search.nop = int(datail_data[16])	#営業利益
-			search.op = int(datail_data[17])	#経常利益
-			search.np = int(datail_data[18])	#当期利益
-			search.ta = int(datail_data[22])	#総資産
-			search.lc = int(datail_data[22])	#資本金
-			search.er = float(datail_data[26])	#自己資本比率[%]
-			search.roa = float(datail_data[28])	#ROA（総資産利益率）[%]
-			search.roe = float(datail_data[29])	#ROE（自己資本利益率）[%]
+			if(dp.is_num(datail_data[16])):
+				search.nop = int(datail_data[16])	#営業利益
+			if(dp.is_num(datail_data[17])):
+				search.op = int(datail_data[17])	#経常利益
+			if(dp.is_num(datail_data[18])):
+				search.np = int(datail_data[18])	#当期利益
+			if(dp.is_num(datail_data[22])):
+				search.ta = int(datail_data[22])	#総資産
+			if(dp.is_num(datail_data[24])):
+				search.lc = int(datail_data[24])	#資本金
+			if(dp.is_num(datail_data[26])):
+				search.er = float(datail_data[26])	#自己資本比率[%]
+			if(dp.is_num(datail_data[28])):
+				search.roa = float(datail_data[28])	#ROA（総資産利益率）[%]
+			if(dp.is_num(datail_data[29])):
+				search.roe = float(datail_data[29])	#ROE（自己資本利益率）[%]
 		stock_search(search)
 	print "search was done"
 
